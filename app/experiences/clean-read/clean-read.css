@@ -1,0 +1,36 @@
+.cr-read {
+  max-width: 70ch;
+  margin: 0 auto;
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+.cr-para {
+  position: relative;
+  margin: 0 0 1.1em;
+  padding: 0.15em 0.4em 0.15em 0.6em;
+  border-left: 3px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.cr-para:hover {
+  background: var(--surface-hover);
+}
+.cr-active {
+  border-left-color: var(--accent);
+  background: var(--surface-active);
+}
+.cr-time {
+  display: inline-block;
+  min-width: 3.2em;
+  margin-right: 0.6em;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  color: var(--muted);
+  user-select: none;
+}
+.cr-empty {
+  color: var(--muted);
+  text-align: center;
+  margin-top: 3rem;
+}

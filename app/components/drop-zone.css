@@ -1,0 +1,64 @@
+.dz {
+  margin: 0 0 1.2rem;
+  padding: 1rem 0.9rem;
+  border: 1.5px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+  text-align: center;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--muted);
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.dz:hover {
+  border-color: var(--accent);
+}
+.dz-over {
+  border-color: var(--accent);
+  background: var(--surface-active);
+  color: var(--text);
+}
+.dz-working {
+  cursor: progress;
+  border-style: solid;
+}
+.dz-disabled {
+  cursor: default;
+  color: var(--muted);
+  opacity: 0.75;
+}
+.dz-disabled:hover {
+  border-color: var(--border);
+}
+.dz strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.dz-msg {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.dz-error {
+  color: #b3261e;
+}
+.dz-retry {
+  color: var(--muted);
+}
+.dz-spinner {
+  width: 0.9em;
+  height: 0.9em;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  display: inline-block;
+  animation: dz-spin 0.7s linear infinite;
+}
+@keyframes dz-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

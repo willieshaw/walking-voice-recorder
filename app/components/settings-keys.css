@@ -1,0 +1,69 @@
+.sk {
+  max-width: 34rem;
+  margin: 2rem auto;
+  padding: 1.6rem 1.8rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.sk-title {
+  margin: 0 0 0.4rem;
+}
+.sk-intro {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  margin: 0 0 1.4rem;
+}
+.sk-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1.2rem;
+  font-size: 0.9rem;
+}
+.sk-muted {
+  color: var(--muted);
+  font-weight: 400;
+}
+.sk-field input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+}
+.sk-field input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.sk-field a {
+  color: var(--accent);
+  font-size: 0.8rem;
+  text-decoration: none;
+  width: fit-content;
+}
+.sk-field a:hover {
+  text-decoration: underline;
+}
+.sk-save {
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 1.4rem;
+  cursor: pointer;
+}
+.sk-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.sk-note {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 1rem 0 0;
+}
