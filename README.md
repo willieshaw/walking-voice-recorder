@@ -22,8 +22,11 @@ backend, nothing stored on a server.
 ## Use it
 
 Open the app, click the ⚙ (or the keys panel), paste your key, then drag a recording onto
-the drop zone. After a minute or two you'll see the note. Read it in **Read Along**, copy it
-from **Transcript**, or scrub structure in **Layers**. **Export** downloads a note's JSON.
+the drop zone. After a minute or two you'll see the note. Copy it from **Transcript**,
+follow along in **Listen**, jump between key moments on the **Scrubber** waveform, or
+explore the recurring ideas in **Concepts**. **Export** downloads a note's JSON. Notes
+made before an update show an **Upgrade note** button that adds the newer analyses using
+the stored transcript (no re-transcription).
 
 ## Local development
 
@@ -76,8 +79,8 @@ Local deploy (optional): `npx wrangler deploy` after `npm run build` (needs `wra
   proxies above (OpenAI doesn't allow direct browser calls to either endpoint).
   `app/lib/processInBrowser.ts` orchestrates; `app/lib/notesDb.ts` stores notes in
   IndexedDB.
-- `app/experiences/` — swappable views (Read Along, Transcript, Layers), toggled in
-  `app/config/flags.ts`.
+- `app/experiences/` — swappable views (Transcript, Listen, Scrubber, Concepts, Layers),
+  toggled in `app/config/flags.ts`.
 
 Adding a new **view** = a folder in `app/experiences/` + a registry line. The Node CLI
 (`npm run process`) still works against the filesystem for your own use.
