@@ -9,3 +9,6 @@ app/public/notes/*
 
 # Wrangler / Cloudflare
 .wrangler
+
+# macOS
+.DS_Store
