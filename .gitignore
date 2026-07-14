@@ -6,3 +6,6 @@ dist
 # Generated note artifacts (audio + derived JSON). Keep these local.
 app/public/notes/*
 !app/public/notes/.gitkeep
+
+# Wrangler / Cloudflare
+.wrangler

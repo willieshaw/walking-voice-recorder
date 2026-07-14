@@ -47,17 +47,21 @@ npm run process -- <audio-file>   # optional Node CLI path (writes to app/public
 
 ## Ship it (free) + version control
 
+Deploys to **Cloudflare Workers** (static assets + a tiny Worker for the two `/api/*`
+routes), configured by `wrangler.jsonc` + `worker/index.ts`.
+
 1. **Version control:** push to a **private GitHub repo** (`git init`, commit, push).
-2. **Host on Cloudflare Pages** (free; Vercel/Netlify work too):
-   - Connect the GitHub repo.
-   - Build command: `npm run build`
-   - Build output directory: `dist`
-   - Functions directory: `functions` (auto-detected — serves `/api/transcribe` and
-     `/api/structure`).
+2. **Host on Cloudflare** (free): Workers & Pages → connect the GitHub repo. Cloudflare
+   detects Vite and reads `wrangler.jsonc`:
+   - Build command: `npm run build` (outputs `dist/`).
+   - Deploy: `npx wrangler deploy` (serves `dist/` via the `ASSETS` binding and routes
+     `/api/transcribe` + `/api/structure` through `worker/index.ts`).
    - No environment variables needed on the host — the key is per-user, entered in the app.
 3. **Every `git push` auto-deploys** the same URL. Testers just refresh to get updates.
 4. **Feedback:** link a free form (Tally/Google Form) and use the in-app **Export** button
    to collect a tester's transcript + layers.
+
+Local deploy (optional): `npx wrangler deploy` after `npm run build` (needs `wrangler login`).
 
 ## Architecture
 
@@ -65,9 +69,9 @@ npm run process -- <audio-file>   # optional Node CLI path (writes to app/public
 - `src/processors/` — the pipeline as pure/reusable logic: `transcribe` (transcript
   assembly) and `layers` (prompt/schema + `assembleLayers`). Shared by the Node CLI and the
   browser.
-- `functions/api/{transcribe,structure}.ts` — the Cloudflare Pages Functions (stateless
-  OpenAI pass-throughs), sharing `src/server/openai{Transcribe,Structure}.ts` with the Vite
-  dev middleware.
+- `worker/index.ts` — the Cloudflare Worker: serves the static SPA and routes the two
+  stateless OpenAI pass-throughs, sharing `src/server/openai{Transcribe,Structure}.ts` with
+  the Vite dev middleware (so dev and prod behave identically).
 - `app/lib/providers/` — browser providers: `openaiStt` and `openaiLlm`, both calling the
   proxies above (OpenAI doesn't allow direct browser calls to either endpoint).
   `app/lib/processInBrowser.ts` orchestrates; `app/lib/notesDb.ts` stores notes in
