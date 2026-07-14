@@ -4,13 +4,13 @@ import { useFocus } from "@core/focus";
 import { AudioPlayer, formatTime } from "./components/AudioPlayer";
 import { DropZone } from "./components/DropZone";
 import { SettingsKeys } from "./components/SettingsKeys";
+import { EditableTitle } from "./components/EditableTitle";
 import { experiences } from "./experiences/registry";
 import { artifactsPresent } from "./experiences/types";
 import { isEnabled } from "./config/flags";
 import { hasKeys } from "./lib/keys";
-import { getNote, listNotes, type NoteSummary } from "./lib/notesDb";
+import { getNote, listNotes, renameNote, saveNote, type NoteSummary } from "./lib/notesDb";
 import { processInBrowser } from "./lib/processInBrowser";
-import { saveNote } from "./lib/notesDb";
 import "./app.css";
 
 export default function App() {
@@ -35,6 +35,12 @@ export default function App() {
     await saveNote(n, audioBlob);
     setSummaries(await listNotes());
     setSelectedId(n.id);
+  }
+
+  async function handleRename(id: string, title: string) {
+    await renameNote(id, title);
+    setSummaries((prev) => prev.map((s) => (s.id === id ? { ...s, title } : s)));
+    setNote((prev) => (prev && prev.id === id ? { ...prev, title } : prev));
   }
 
   useEffect(() => {
@@ -100,13 +106,24 @@ export default function App() {
           <ul className="note-list">
             {summaries.map((s) => (
               <li key={s.id}>
-                <button
+                <div
                   className={`note-item${s.id === selectedId ? " selected" : ""}`}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setSelectedId(s.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") setSelectedId(s.id);
+                  }}
                 >
-                  <span className="note-title">{s.title}</span>
+                  <EditableTitle
+                    as="span"
+                    className="note-title"
+                    value={s.title}
+                    activateOn="dblclick"
+                    onSave={(t) => handleRename(s.id, t)}
+                  />
                   <span className="note-dur">{formatTime(s.durationSec)}</span>
-                </button>
+                </div>
               </li>
             ))}
           </ul>
@@ -129,7 +146,12 @@ export default function App() {
               <>
                 <header className="note-header">
                   <div className="note-header-row">
-                    <h2>{note.title}</h2>
+                    <EditableTitle
+                      as="h2"
+                      value={note.title}
+                      activateOn="click"
+                      onSave={(t) => handleRename(note.id, t)}
+                    />
                     <button className="ghost-btn" onClick={exportNote} title="Download JSON">
                       Export
                     </button>

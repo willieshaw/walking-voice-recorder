@@ -72,3 +72,12 @@ export async function getNote(id: string): Promise<Note | null> {
 export async function deleteNote(id: string): Promise<void> {
   await tx("readwrite", (s) => s.delete(id));
 }
+
+/** Rename a note in place (updates both the summary title and the stored note data). */
+export async function renameNote(id: string, title: string): Promise<void> {
+  const stored = await tx<StoredNote | undefined>("readonly", (s) => s.get(id));
+  if (!stored) return;
+  stored.title = title;
+  stored.data = { ...stored.data, title };
+  await tx("readwrite", (s) => s.put(stored));
+}

@@ -81,11 +81,39 @@ body {
 }
 .note-title {
   font-size: 0.92rem;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .note-dur {
   font-size: 0.75rem;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* Inline title editing (sidebar + note heading). Input inherits the wrapper's font. */
+.title-input {
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--accent);
+  outline: none;
+}
+.note-header-row h2 {
+  cursor: text;
+}
+.note-header-row h2:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 3px;
 }
 
 .main {
