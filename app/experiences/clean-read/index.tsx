@@ -37,7 +37,7 @@ function CleanRead({ note }: { note: Note }) {
 
 export const cleanRead: Experience = {
   id: "clean-read",
-  title: "Read Along",
+  title: "Listen",
   requires: ["transcript"],
   Component: CleanRead,
 };

@@ -4,9 +4,10 @@ import { cleanRead } from "./clean-read";
 import { plainText } from "./plain-text";
 import { layers } from "./layers";
 
+// Order = tab order; the first enabled+available one is the default view.
 export const experiences: Experience[] = [
-  cleanRead,
-  plainText,
-  layers,
+  plainText, // "Transcript" — default
+  cleanRead, // "Listen"
+  layers, // disabled via flags for now
   // Milestone 3+: audioScrubber, conceptCloud.
 ];

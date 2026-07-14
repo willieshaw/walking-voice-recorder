@@ -84,7 +84,7 @@ export default function App() {
     <div className="app">
       <aside className="sidebar">
         <div className="brand-row">
-          <h1 className="brand">Walking Lab</h1>
+          <h1 className="brand">Thoughts</h1>
           <button className="icon-btn" title="API keys" onClick={() => setShowSettings(true)}>
             ⚙
           </button>

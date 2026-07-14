@@ -1,4 +1,4 @@
-# Walking Voice Recorder — Lab
+# Thoughts
 
 A tool for turning a brainstorming-walk recording into clean, structured notes. Drop an
 audio file, get a timestamped transcript and a **Layers** view that dials from raw ramble
