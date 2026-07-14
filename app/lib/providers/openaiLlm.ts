@@ -1,12 +1,24 @@
-// Browser Layers structuring. OpenAI blocks direct browser calls (confirmed by CORS check),
-// so this posts to our stateless /api/structure pass-through — reusing the exact same
-// prompt, schema, and assembly as the Node pipeline.
-import type { FormattingLayers, Transcript } from "@core/types";
+// Browser structuring calls. OpenAI blocks direct browser calls (confirmed by CORS
+// check), so these post to our stateless /api/structure pass-through — reusing the exact
+// same prompts, schemas, and assembly as the Node pipeline.
+import type { Chunk, Concept, FormattingLayers, KeyMoment, Transcript } from "@core/types";
 import { assembleLayers, layersLlmRequest } from "@engine/processors/layers/index";
 import type { LayersResult } from "@engine/processors/layers/prompt";
+import { assembleKeyMoments, keyMomentsLlmRequest } from "@engine/processors/keymoments/index";
+import type { KeyMomentsResult } from "@engine/processors/keymoments/prompt";
+import { assembleConcepts, conceptsLlmRequest } from "@engine/processors/concepts/index";
+import type { ConceptsResult } from "@engine/processors/concepts/prompt";
 import { getKeys } from "../keys";
 
-export async function buildLayers(transcript: Transcript): Promise<FormattingLayers> {
+interface LlmRequest {
+  system: string;
+  schema: Record<string, unknown>;
+  schemaName: string;
+  buildPrompt: (paragraphs: Chunk[]) => string;
+}
+
+/** Run one structured-output call through the pass-through and parse the JSON result. */
+async function callStructure<T>(req: LlmRequest, paragraphs: Chunk[]): Promise<T> {
   const { openai } = getKeys();
   if (!openai) throw new Error("Add your OpenAI key in Settings.");
 
@@ -14,10 +26,10 @@ export async function buildLayers(transcript: Transcript): Promise<FormattingLay
     method: "POST",
     headers: { "x-openai-key": openai, "content-type": "application/json" },
     body: JSON.stringify({
-      system: layersLlmRequest.system,
-      prompt: layersLlmRequest.buildPrompt(transcript.paragraphs),
-      schema: layersLlmRequest.schema,
-      schemaName: layersLlmRequest.schemaName,
+      system: req.system,
+      prompt: req.buildPrompt(paragraphs),
+      schema: req.schema,
+      schemaName: req.schemaName,
     }),
   });
   if (!res.ok) {
@@ -31,6 +43,26 @@ export async function buildLayers(transcript: Transcript): Promise<FormattingLay
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   const content = data.choices?.[0]?.message?.content;
   if (!content) throw new Error("OpenAI returned no message content to parse.");
-  const result = JSON.parse(content) as LayersResult;
+  return JSON.parse(content) as T;
+}
+
+export async function buildLayers(transcript: Transcript): Promise<FormattingLayers> {
+  const result = await callStructure<LayersResult>(layersLlmRequest, transcript.paragraphs);
   return assembleLayers(transcript, result);
+}
+
+export async function buildKeyMoments(transcript: Transcript): Promise<KeyMoment[]> {
+  const result = await callStructure<KeyMomentsResult>(
+    keyMomentsLlmRequest,
+    transcript.paragraphs,
+  );
+  return assembleKeyMoments(transcript, result);
+}
+
+export async function buildConcepts(transcript: Transcript): Promise<Concept[]> {
+  const result = await callStructure<ConceptsResult>(
+    conceptsLlmRequest,
+    transcript.paragraphs,
+  );
+  return assembleConcepts(transcript, result);
 }

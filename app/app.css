@@ -197,3 +197,26 @@ body {
   color: var(--text);
   border-color: var(--accent);
 }
+.ghost-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.upgrade-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+  padding: 0.6rem 0.9rem;
+  background: var(--surface-active);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+.upgrade-banner .ghost-btn {
+  background: var(--surface);
+  flex-shrink: 0;
+}

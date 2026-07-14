@@ -3,9 +3,13 @@
 import type { AnyProcessor } from "./types.js";
 import { transcribeProcessor } from "./transcribe/index.js";
 import { layersProcessor } from "./layers/index.js";
+import { keyMomentsProcessor } from "./keymoments/index.js";
+import { conceptsProcessor } from "./concepts/index.js";
 
 export const processors: AnyProcessor[] = [
   transcribeProcessor as AnyProcessor,
   layersProcessor as AnyProcessor,
-  // Milestone 3+: keymoments, concepts, embeddings.
+  keyMomentsProcessor as AnyProcessor,
+  conceptsProcessor as AnyProcessor,
+  // Later: embeddings.
 ];

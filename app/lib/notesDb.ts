@@ -81,3 +81,16 @@ export async function renameNote(id: string, title: string): Promise<void> {
   stored.data = { ...stored.data, title };
   await tx("readwrite", (s) => s.put(stored));
 }
+
+/** Patch stored note data in place (e.g. adding artifacts to an older note). */
+export async function updateNote(
+  id: string,
+  patch: Partial<Omit<Note, "audioUrl">>,
+): Promise<void> {
+  const stored = await tx<StoredNote | undefined>("readonly", (s) => s.get(id));
+  if (!stored) return;
+  stored.data = { ...stored.data, ...patch };
+  if (patch.title !== undefined) stored.title = patch.title;
+  if (patch.durationSec !== undefined) stored.durationSec = patch.durationSec;
+  await tx("readwrite", (s) => s.put(stored));
+}

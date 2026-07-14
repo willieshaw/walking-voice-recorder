@@ -4,7 +4,8 @@ export const experienceFlags: Record<string, boolean> = {
   "plain-text": true, // "Transcript" — plain copyable text (default view)
   "clean-read": true, // "Listen" — transcript synced to audio
   layers: false, // "Layers" — disabled for now; revisit later
-  // Milestone 3+: "audio-scrubber", "concept-cloud".
+  "audio-scrubber": true, // "Scrubber" — waveform with key-moment markers
+  "concept-cloud": true, // "Concepts" — weighted concept cloud
 };
 
 export function isEnabled(id: string): boolean {

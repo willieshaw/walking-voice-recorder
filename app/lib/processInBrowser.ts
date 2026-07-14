@@ -1,8 +1,8 @@
-// The whole processing pipeline, client-side: audio File -> transcript -> layers -> Note.
+// The whole processing pipeline, client-side: audio File -> transcript -> branches -> Note.
 // Replaces the old server round-trip. Runs with the tester's own keys.
 import type { Note } from "@core/types";
 import { transcribe } from "./providers/openaiStt";
-import { buildLayers } from "./providers/openaiLlm";
+import { buildConcepts, buildKeyMoments, buildLayers } from "./providers/openaiLlm";
 
 export interface ProcessedNote {
   note: Note;
@@ -21,7 +21,12 @@ function makeId(filename: string, now = new Date()): string {
 
 export async function processInBrowser(file: File): Promise<ProcessedNote> {
   const transcript = await transcribe(file);
-  const layers = await buildLayers(transcript);
+  // The derived branches are independent of each other — run them in parallel.
+  const [layers, keymoments, concepts] = await Promise.all([
+    buildLayers(transcript),
+    buildKeyMoments(transcript),
+    buildConcepts(transcript),
+  ]);
   const id = makeId(file.name);
   const note: Note = {
     id,
@@ -30,6 +35,8 @@ export async function processInBrowser(file: File): Promise<ProcessedNote> {
     durationSec: transcript.durationSec,
     transcript,
     layers,
+    keymoments,
+    concepts,
   };
   return { note, audioBlob: file };
 }

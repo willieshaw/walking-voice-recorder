@@ -9,7 +9,15 @@ import { experiences } from "./experiences/registry";
 import { artifactsPresent } from "./experiences/types";
 import { isEnabled } from "./config/flags";
 import { hasKeys } from "./lib/keys";
-import { getNote, listNotes, renameNote, saveNote, type NoteSummary } from "./lib/notesDb";
+import {
+  getNote,
+  listNotes,
+  renameNote,
+  saveNote,
+  updateNote,
+  type NoteSummary,
+} from "./lib/notesDb";
+import { buildConcepts, buildKeyMoments } from "./lib/providers/openaiLlm";
 import { processInBrowser } from "./lib/processInBrowser";
 import "./app.css";
 
@@ -21,6 +29,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [keysReady, setKeysReady] = useState(hasKeys());
   const [showSettings, setShowSettings] = useState(!hasKeys());
+  const [upgrading, setUpgrading] = useState(false);
+  const [upgradeError, setUpgradeError] = useState<string | null>(null);
   const resetFocus = useFocus((s) => s.reset);
 
   useEffect(() => {
@@ -43,10 +53,37 @@ export default function App() {
     setNote((prev) => (prev && prev.id === id ? { ...prev, title } : prev));
   }
 
+  // Older notes were processed before key moments/concepts existed; they can be
+  // upgraded from the stored transcript alone (no re-transcription, purely additive).
+  const needsUpgrade = !!note?.transcript && (!note.keymoments || !note.concepts);
+
+  async function handleUpgrade() {
+    const target = note;
+    if (!target?.transcript) return;
+    setUpgrading(true);
+    setUpgradeError(null);
+    try {
+      const [keymoments, concepts] = await Promise.all([
+        target.keymoments ?? buildKeyMoments(target.transcript),
+        target.concepts ?? buildConcepts(target.transcript),
+      ]);
+      await updateNote(target.id, { keymoments, concepts });
+      // Guard against the user switching notes while the upgrade was in flight.
+      setNote((prev) =>
+        prev && prev.id === target.id ? { ...prev, keymoments, concepts } : prev,
+      );
+    } catch (e) {
+      setUpgradeError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUpgrading(false);
+    }
+  }
+
   useEffect(() => {
     if (!selectedId) return;
     setNote(null);
     setError(null);
+    setUpgradeError(null);
     resetFocus();
     getNote(selectedId)
       .then((n) => n && setNote(n))
@@ -77,6 +114,8 @@ export default function App() {
       durationSec: note.durationSec,
       transcript: note.transcript,
       layers: note.layers,
+      keymoments: note.keymoments,
+      concepts: note.concepts,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
@@ -158,6 +197,23 @@ export default function App() {
                   </div>
                   <AudioPlayer src={note.audioUrl} />
                 </header>
+
+                {needsUpgrade && (
+                  <div className="upgrade-banner">
+                    <span>
+                      This note can be upgraded with the latest analysis (key moments and
+                      concepts). Nothing existing is changed.
+                    </span>
+                    <button
+                      className="ghost-btn"
+                      onClick={handleUpgrade}
+                      disabled={upgrading || !keysReady}
+                    >
+                      {upgrading ? "Upgrading…" : "Upgrade note"}
+                    </button>
+                    {upgradeError && <span className="error">{upgradeError}</span>}
+                  </div>
+                )}
 
                 <nav className="tabs">
                   {available.map((e) => (
