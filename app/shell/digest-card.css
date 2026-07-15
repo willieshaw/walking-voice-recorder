@@ -104,52 +104,41 @@
   color: var(--text);
   border-color: var(--hairline);
 }
-/* Summary variant toggle (‹ Label n/5 ›) */
-.dg-variant {
+/* Summary variant toggle — numbered 1–5 pills below the "Summary" label */
+.dg-variants {
   display: flex;
-  align-items: center;
   gap: 6px;
-  margin-bottom: 11px;
+  margin: -1px 0 13px;
 }
-.dg-vstep {
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.dg-vpill {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
   font: inherit;
-  font-size: 15px;
-  line-height: 1;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
   color: var(--text-2);
   background: none;
   border: 1px solid var(--border);
   border-radius: 6px;
   cursor: pointer;
-  transition: color 0.12s ease, border-color 0.12s ease;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
 }
-.dg-vstep:hover:not(:disabled) {
+.dg-vpill:hover:not(:disabled):not(.dg-vpill-active) {
   color: var(--text);
   border-color: var(--hairline);
 }
-.dg-vstep:disabled {
-  opacity: 0.4;
+.dg-vpill-active {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.dg-vpill:disabled {
+  opacity: 0.5;
   cursor: default;
 }
-.dg-vlabel {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  min-width: 84px;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-2);
-}
-.dg-vcount {
-  font-size: 10px;
-  font-weight: 400;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
+.dg-vpill-active:disabled {
+  opacity: 1;
 }
 .dg-summary {
   margin: 0;

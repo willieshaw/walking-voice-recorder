@@ -61,11 +61,10 @@ export function DigestCard({
     }
   }
 
-  function step(delta: number) {
-    if (busy) return;
-    const ni = (vi + delta + summaryVariants.length) % summaryVariants.length;
-    setVi(ni);
-    void generate(summaryVariants[ni].id);
+  function pick(index: number) {
+    if (busy || index === vi) return;
+    setVi(index);
+    void generate(summaryVariants[index].id);
   }
 
   return (
@@ -90,42 +89,29 @@ export function DigestCard({
         <div className="dg-body">
           {note.summary && (
             <section className="dg-section">
-              <div className="dg-section-head">
-                <div className="dg-label">Summary</div>
-                {canVary && (
-                  <div className="dg-variant" title="Try a different summary style">
+              <div className="dg-label">Summary</div>
+              {canVary && (
+                <div className="dg-variants">
+                  {summaryVariants.map((v, i) => (
                     <button
-                      className="dg-vstep"
-                      onClick={() => step(-1)}
+                      key={v.id}
+                      className={`dg-vpill${i === vi ? " dg-vpill-active" : ""}`}
                       disabled={busy}
-                      aria-label="Previous summary style"
+                      title={v.label}
+                      onClick={() => pick(i)}
                     >
-                      ‹
+                      {i + 1}
                     </button>
-                    <span className="dg-vlabel">
-                      {variant.label}
-                      <span className="dg-vcount">
-                        {vi + 1}/{summaryVariants.length}
-                      </span>
-                    </span>
-                    <button
-                      className="dg-vstep"
-                      onClick={() => step(1)}
-                      disabled={busy}
-                      aria-label="Next summary style"
-                    >
-                      ›
-                    </button>
-                  </div>
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
               {busy ? (
                 <p className="dg-summary dg-summary-muted">
-                  <span className="dg-vspin" /> Writing the “{variant.label}” version…
+                  <span className="dg-vspin" /> Thinking…
                 </p>
               ) : err ? (
                 <p className="dg-summary dg-summary-muted">
-                  Couldn’t write this version.{" "}
+                  Couldn’t write this one.{" "}
                   <button className="dg-vretry" onClick={() => void generate(variant.id)}>
                     Retry
                   </button>
