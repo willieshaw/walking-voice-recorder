@@ -9,6 +9,9 @@ export interface NoteSummary {
   createdAt: number;
   /** First line of the transcript, for the library feed. */
   snippet: string;
+  tags: string[];
+  folder?: string;
+  pinned: boolean;
 }
 
 /** Stored shape: the note's data minus the ephemeral object-URL, plus the audio blob. */
@@ -69,37 +72,94 @@ export async function listNotes(): Promise<NoteSummary[]> {
       durationSec,
       createdAt,
       snippet: (data.transcript?.text ?? "").replace(/\s+/g, " ").trim().slice(0, 180),
+      tags: data.tags ?? [],
+      folder: data.folder,
+      pinned: data.pinned ?? false,
     }));
+}
+
+export interface SearchHit {
+  id: string;
+  title: string;
+  createdAt: number;
+  folder?: string;
+  /** A little context around the first match (or the note's opening). */
+  snippet: string;
+}
+
+/** Client-side search over titles, tags, and full transcript text. */
+export async function searchNotes(query: string): Promise<SearchHit[]> {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const all = await tx<StoredNote[]>("readonly", (s) => s.getAll());
+  return all
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .flatMap((n) => {
+      const text = (n.data.transcript?.text ?? "").replace(/\s+/g, " ");
+      const inTitle = n.title.toLowerCase().includes(q);
+      const inTags = (n.data.tags ?? []).some((t) => t.toLowerCase().includes(q));
+      const at = text.toLowerCase().indexOf(q);
+      if (!inTitle && !inTags && at < 0) return [];
+      const snippet =
+        at >= 0
+          ? (at > 40 ? "…" : "") + text.slice(Math.max(0, at - 40), at + 100).trim()
+          : text.slice(0, 120);
+      return [{ id: n.id, title: n.title, createdAt: n.createdAt, folder: n.data.folder, snippet }];
+    });
 }
 
 export async function getNote(id: string): Promise<Note | null> {
   const stored = await tx<StoredNote | undefined>("readonly", (s) => s.get(id));
   if (!stored) return null;
-  return { ...stored.data, audioUrl: URL.createObjectURL(stored.audio) };
+  return {
+    ...stored.data,
+    createdAt: stored.createdAt,
+    audioUrl: URL.createObjectURL(stored.audio),
+  };
 }
 
 export async function deleteNote(id: string): Promise<void> {
   await tx("readwrite", (s) => s.delete(id));
 }
 
-/** Rename a note in place (updates both the summary title and the stored note data). */
-export async function renameNote(id: string, title: string): Promise<void> {
-  const stored = await tx<StoredNote | undefined>("readonly", (s) => s.get(id));
-  if (!stored) return;
-  stored.title = title;
-  stored.data = { ...stored.data, title };
-  await tx("readwrite", (s) => s.put(stored));
+/** Atomic read-modify-write in ONE readwrite transaction. IndexedDB serializes
+ *  overlapping readwrite transactions on the store, so two concurrent patches
+ *  (e.g. a tag commit racing a pin click) can't clobber each other. */
+function mutateNote(id: string, mutate: (stored: StoredNote) => void): Promise<void> {
+  return openDb().then(
+    (db) =>
+      new Promise<void>((resolve, reject) => {
+        const store = db.transaction(STORE, "readwrite").objectStore(STORE);
+        const get = store.get(id);
+        get.onerror = () => reject(get.error);
+        get.onsuccess = () => {
+          const stored = get.result as StoredNote | undefined;
+          if (!stored) return resolve();
+          mutate(stored);
+          const put = store.put(stored);
+          put.onsuccess = () => resolve();
+          put.onerror = () => reject(put.error);
+        };
+      }),
+  );
 }
 
-/** Patch stored note data in place (e.g. adding artifacts to an older note). */
+/** Rename a note in place (updates both the summary title and the stored note data). */
+export async function renameNote(id: string, title: string): Promise<void> {
+  await mutateNote(id, (stored) => {
+    stored.title = title;
+    stored.data = { ...stored.data, title };
+  });
+}
+
+/** Patch stored note data in place (e.g. labels, or adding artifacts to an older note). */
 export async function updateNote(
   id: string,
   patch: Partial<Omit<Note, "audioUrl">>,
 ): Promise<void> {
-  const stored = await tx<StoredNote | undefined>("readonly", (s) => s.get(id));
-  if (!stored) return;
-  stored.data = { ...stored.data, ...patch };
-  if (patch.title !== undefined) stored.title = patch.title;
-  if (patch.durationSec !== undefined) stored.durationSec = patch.durationSec;
-  await tx("readwrite", (s) => s.put(stored));
+  await mutateNote(id, (stored) => {
+    stored.data = { ...stored.data, ...patch };
+    if (patch.title !== undefined) stored.title = patch.title;
+    if (patch.durationSec !== undefined) stored.durationSec = patch.durationSec;
+  });
 }

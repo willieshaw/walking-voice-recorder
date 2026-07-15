@@ -1,0 +1,78 @@
+.tc-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 22px;
+}
+.tc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--text-2);
+  background: rgba(0, 0, 0, 0.05);
+  padding: 3px 5px 3px 9px;
+  border-radius: 20px;
+}
+.tc-x {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.tc-x:hover {
+  background: rgba(0, 0, 0, 0.09);
+  color: var(--text-2);
+}
+.tc-empty {
+  font-size: 11.5px;
+  color: var(--hairline);
+  font-style: italic;
+}
+.tc-input {
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid rgba(37, 99, 235, 0.4);
+  border-radius: 20px;
+  padding: 3px 10px;
+  outline: none;
+  width: 96px;
+}
+.tc-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  font-size: 11.5px;
+  color: #71717a;
+  background: none;
+  border: 1px dashed rgba(0, 0, 0, 0.2);
+  border-radius: 20px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.tc-add:hover {
+  border-color: rgba(0, 0, 0, 0.4);
+  color: var(--text);
+}
+
+/* Small read-only chips reused by the feed rows */
+.tc-mini {
+  font-size: 11px;
+  color: var(--text-2);
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 8px;
+  border-radius: 20px;
+}

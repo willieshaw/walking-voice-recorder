@@ -65,6 +65,12 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.lf-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 11px;
+}
 .lf-side {
   display: flex;
   flex-direction: column;

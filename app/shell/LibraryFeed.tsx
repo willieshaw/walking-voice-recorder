@@ -37,15 +37,17 @@ function MiniWave({ seed }: { seed: string }) {
 
 export function LibraryFeed({
   summaries,
+  title = "All notes",
   onOpen,
 }: {
   summaries: NoteSummary[];
+  title?: string;
   onOpen: (id: string) => void;
 }) {
   return (
     <div className="lf-page">
       <div className="lf-head">
-        <h1 className="lf-title">All notes</h1>
+        <h1 className="lf-title">{title}</h1>
         <span className="lf-count">
           {summaries.length} note{summaries.length === 1 ? "" : "s"}
         </span>
@@ -63,9 +65,21 @@ export function LibraryFeed({
           }}
         >
           <div className="lf-main">
-            <div className="lf-meta">{formatNoteDate(s.createdAt)}</div>
+            <div className="lf-meta">
+              {s.folder ? `${s.folder} · ` : ""}
+              {formatNoteDate(s.createdAt)}
+            </div>
             <h2 className="lf-row-title">{s.title}</h2>
             {s.snippet && <p className="lf-snippet">{s.snippet}</p>}
+            {s.tags.length > 0 && (
+              <div className="lf-tags">
+                {s.tags.map((t) => (
+                  <span key={t} className="tc-mini">
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           <div className="lf-side">
             <MiniWave seed={s.id} />

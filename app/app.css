@@ -85,12 +85,53 @@ body {
   padding: 14px 6px 8px;
 }
 
+.side-search,
+.side-folders {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: var(--surface);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+.side-search {
+  color: var(--muted);
+}
+.side-folders {
+  background: none;
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+.side-search:hover,
+.side-folders:hover {
+  border-color: rgba(0, 0, 0, 0.22);
+}
+.side-search-label,
+.side-folders-label {
+  flex: 1;
+}
+.side-folders-count {
+  font-size: 10.5px;
+  color: var(--hairline);
+}
+
 .note-list {
   list-style: none;
   margin: 0 -4px;
   padding: 0 4px;
   overflow-y: auto;
   flex: 1;
+}
+.note-list-pinned {
+  flex: none;
+  margin-bottom: 4px;
 }
 .note-item {
   width: 100%;
@@ -235,7 +276,19 @@ body {
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 22px;
+  margin-bottom: 14px;
+}
+.memo-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.pin-btn {
+  font-size: 1.1rem;
+}
+.pin-on {
+  color: var(--accent);
 }
 h2.memo-title {
   margin: 0;

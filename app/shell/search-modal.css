@@ -1,0 +1,86 @@
+/* Shared overlay scrim (search + folders modals) */
+.modal-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(24, 24, 27, 0.35);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  z-index: 60;
+}
+.kbd {
+  font-size: 10.5px;
+  color: var(--muted);
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-family: ui-monospace, Menlo, monospace;
+}
+
+.sm-card {
+  width: 600px;
+  max-width: 90vw;
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  animation: rp-fadeup 0.2s ease;
+}
+.sm-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.sm-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: none;
+  font: inherit;
+  font-size: 16px;
+  color: var(--text);
+}
+.sm-results {
+  max-height: 52vh;
+  overflow-y: auto;
+  padding: 8px;
+}
+.sm-hit {
+  display: block;
+  padding: 11px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.sm-hit:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+.sm-hit-meta {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+.sm-hit-title {
+  font-family: "Newsreader", serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.sm-hit-snippet {
+  font-size: 12.5px;
+  color: var(--text-2);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sm-none {
+  padding: 28px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}

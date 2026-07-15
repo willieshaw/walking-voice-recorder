@@ -133,6 +133,12 @@ export interface Note {
   title: string;
   audioUrl: string;
   durationSec: Seconds;
+  createdAt?: number;
+  /** The label facet: user-applied organization (no LLM). Search, Folders, and Pinned
+   *  are all filtered views over these same fields — not separate subsystems. */
+  tags?: string[];
+  folder?: string;
+  pinned?: boolean;
   transcript?: Transcript;
   layers?: FormattingLayers;
   keymoments?: KeyMoment[];
