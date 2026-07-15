@@ -18,6 +18,13 @@
   padding: 1px 6px;
   font-family: ui-monospace, Menlo, monospace;
 }
+/* The ⌘ glyph renders smaller than a letter; bump it up to K's visual size and
+ *  give it a little breathing room from the K. */
+.kbd-cmd {
+  font-size: 1.25em;
+  margin-right: 1.5px;
+  vertical-align: -0.06em;
+}
 
 .sm-card {
   width: 600px;

@@ -222,7 +222,9 @@ export default function App() {
             <path d="M21 21l-4.3-4.3" />
           </svg>
           <span className="side-search-label">Search notes</span>
-          <span className="kbd">⌘K</span>
+          <span className="kbd">
+            <span className="kbd-cmd">⌘</span>K
+          </span>
         </button>
         <button className="side-folders" onClick={() => setFoldersOpen(true)}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
