@@ -23,25 +23,26 @@ interface DirectiveProps {
 
 function TodoCard({ a, onPatchAnnotation }: { a: Annotation } & DirectiveProps) {
   const [copied, flashCopied] = useCopyFlash();
+  // Copy lives outside the toggle label (as a sibling, absolutely positioned top-right) so
+  // its hit area never overlaps the check-off area and a copy click can't toggle the to-do.
   return (
-    <label className="dir-todo" onClick={() => onPatchAnnotation(a, { done: !a.done })}>
-      <span className={`dir-todo-box${a.done ? " dir-todo-box-done" : ""}`}>
-        {a.done ? "✓" : ""}
-      </span>
-      <span className="dir-todo-body">
-        <span className="dir-tag dir-tag-todo">To-do</span>
-        <span className={`dir-todo-text${a.done ? " dir-todo-text-done" : ""}`}>{a.label}</span>
-      </span>
+    <div className="dir-todo-wrap">
+      <label className="dir-todo" onClick={() => onPatchAnnotation(a, { done: !a.done })}>
+        <span className={`dir-todo-box${a.done ? " dir-todo-box-done" : ""}`}>
+          {a.done ? "✓" : ""}
+        </span>
+        <span className="dir-todo-body">
+          <span className="dir-tag dir-tag-todo">To-do</span>
+          <span className={`dir-todo-text${a.done ? " dir-todo-text-done" : ""}`}>{a.label}</span>
+        </span>
+      </label>
       <button
         className="dir-todo-copy"
-        onClick={(e) => {
-          e.stopPropagation();
-          flashCopied(() => copyTodos([{ label: a.label, done: a.done }]));
-        }}
+        onClick={() => flashCopied(() => copyTodos([{ label: a.label, done: a.done }]))}
       >
         {copied ? "Copied" : "Copy"}
       </button>
-    </label>
+    </div>
   );
 }
 

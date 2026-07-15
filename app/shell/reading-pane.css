@@ -120,15 +120,19 @@ h2.cc2-chunk::before {
 }
 
 /* Inline to-do cards (Raw mode) — green checkbox card under the paragraph it was spoken in */
+.dir-todo-wrap {
+  position: relative;
+  margin: 10px 0 10px 47px;
+}
 .dir-todo {
   display: flex;
   gap: 11px;
   align-items: flex-start;
-  margin: 10px 0 10px 47px;
   border: 1px solid rgba(22, 163, 74, 0.3);
   background: rgba(22, 163, 74, 0.05);
   border-radius: 11px;
   padding: 12px 14px;
+  padding-right: 58px; /* clear the copy button in the top-right corner */
   cursor: pointer;
 }
 .dir-todo-box {
@@ -175,9 +179,9 @@ h2.cc2-chunk::before {
   text-decoration: line-through;
 }
 .dir-todo-copy {
-  margin-left: auto;
-  align-self: center;
-  flex: none;
+  position: absolute;
+  top: 8px;
+  right: 8px;
   font: inherit;
   font-size: 11px;
   color: var(--text-2);
@@ -189,7 +193,7 @@ h2.cc2-chunk::before {
   opacity: 0;
   transition: opacity 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
-.dir-todo:hover .dir-todo-copy,
+.dir-todo-wrap:hover .dir-todo-copy,
 .dir-todo-copy:focus-visible {
   opacity: 1;
 }
