@@ -16,6 +16,11 @@ interface FocusState {
   registerSeek: (fn: (t: number) => void) => void;
   seek: (t: number, focus?: { activeChunkId?: string; activeConceptId?: string }) => void;
 
+  // The AudioPlayer registers play/pause; custom player UIs call `togglePlay`.
+  _toggle?: () => void;
+  registerToggle: (fn: () => void) => void;
+  togglePlay: () => void;
+
   setCurrentTime: (t: number) => void;
   setDuration: (d: number) => void;
   setPlaying: (p: boolean) => void;
@@ -33,6 +38,9 @@ export const useFocus = create<FocusState>((set, get) => ({
     get()._seek?.(t);
     set({ currentTime: t, ...(focus ?? {}) });
   },
+
+  registerToggle: (fn) => set({ _toggle: fn }),
+  togglePlay: () => get()._toggle?.(),
 
   setCurrentTime: (t) => set({ currentTime: t }),
   setDuration: (d) => set({ duration: d }),

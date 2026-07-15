@@ -1,0 +1,91 @@
+.lf-page {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 44px 48px 80px;
+}
+.lf-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.lf-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.lf-count {
+  font-size: 12px;
+  color: var(--hairline);
+}
+.lf-rule {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.1);
+  margin-bottom: 2px;
+}
+.lf-row {
+  display: grid;
+  grid-template-columns: 1fr 132px;
+  gap: 28px;
+  align-items: center;
+  padding: 22px 8px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.lf-row:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+.lf-main {
+  min-width: 0;
+}
+.lf-meta {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 7px;
+}
+.lf-row-title {
+  margin: 0 0 6px;
+  font-family: "Newsreader", serif;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+.lf-snippet {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-2);
+  max-width: 60ch;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.lf-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.lf-wave {
+  display: flex;
+  align-items: center;
+  gap: 1.5px;
+  height: 30px;
+  width: 120px;
+}
+.lf-wave span {
+  flex: 1;
+  min-width: 1.5px;
+  border-radius: 2px;
+  background: var(--hairline);
+}
+.lf-dur {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: var(--muted);
+}

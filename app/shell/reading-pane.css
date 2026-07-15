@@ -1,0 +1,67 @@
+.rp-switch {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 9px;
+  margin-bottom: 22px;
+}
+.rp-pill {
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text-2);
+  padding: 6px 14px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.rp-pill:hover {
+  color: var(--text);
+}
+.rp-pill-active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.rp-pane {
+  animation: rp-fadeup 0.3s ease;
+}
+@keyframes rp-fadeup {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Clean copy typography (layers Grouped level, reskinned) */
+.cc2-body {
+  max-width: 64ch;
+  font-family: "Newsreader", serif;
+  font-size: 18px;
+  line-height: 1.65;
+  color: #1c1917;
+}
+.cc2-chunk {
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 2px 8px;
+  margin: 0 -8px 18px;
+}
+.cc2-chunk:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+.cc2-active {
+  background: var(--surface-active);
+}
+h2.cc2-chunk {
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin: 30px -8px 10px;
+}

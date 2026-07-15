@@ -6,6 +6,9 @@ export interface NoteSummary {
   id: string;
   title: string;
   durationSec: number;
+  createdAt: number;
+  /** First line of the transcript, for the library feed. */
+  snippet: string;
 }
 
 /** Stored shape: the note's data minus the ephemeral object-URL, plus the audio blob. */
@@ -60,7 +63,13 @@ export async function listNotes(): Promise<NoteSummary[]> {
   const all = await tx<StoredNote[]>("readonly", (s) => s.getAll());
   return all
     .sort((a, b) => b.createdAt - a.createdAt)
-    .map(({ id, title, durationSec }) => ({ id, title, durationSec }));
+    .map(({ id, title, durationSec, createdAt, data }) => ({
+      id,
+      title,
+      durationSec,
+      createdAt,
+      snippet: (data.transcript?.text ?? "").replace(/\s+/g, " ").trim().slice(0, 180),
+    }));
 }
 
 export async function getNote(id: string): Promise<Note | null> {
