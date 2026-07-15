@@ -10,7 +10,7 @@ import { AudioPlayer, formatTime } from "../components/AudioPlayer";
 import { getPeaks } from "../lib/peaks";
 import "./sticky-player.css";
 
-const WAVE_HEIGHT = 44;
+const WAVE_HEIGHT = 32;
 const BUCKETS = 110;
 
 interface Chapter {
@@ -123,7 +123,7 @@ export function StickyPlayer({ note }: { note: Note }) {
     <div className="sp-sticky">
       <AudioPlayer src={note.audioUrl} hidden />
       <div
-        className={`sp-card${expanded ? "" : " sp-collapsed"}`}
+        className="sp-card"
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
       >

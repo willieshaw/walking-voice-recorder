@@ -11,28 +11,15 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 14px 18px 8px;
+  /* Constant padding in both states — collapse/expand only adds the chapter row below,
+   *  so nothing shifts horizontally or resizes; only the card's height changes. */
+  padding: 11px 18px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.07);
-  transition: padding 0.2s ease, box-shadow 0.2s ease;
-}
-.sp-card.sp-collapsed {
-  align-items: center;
-  padding: 8px 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.09);
-}
-.sp-collapsed .sp-play {
-  width: 34px;
-  height: 34px;
-  margin-top: 0;
-}
-.sp-collapsed .sp-clock {
-  margin-top: 0;
 }
 .sp-play {
-  width: 44px;
-  height: 44px;
+  width: 32px;
+  height: 32px;
   flex: none;
-  transition: width 0.2s ease, height 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -41,7 +28,6 @@
   background: none;
   color: var(--text);
   cursor: pointer;
-  margin-top: 4px;
 }
 .sp-play:hover {
   border-color: var(--accent);
@@ -130,7 +116,7 @@
 }
 .sp-clock {
   flex: none;
-  margin-top: 14px;
+  margin-top: 9px;
   font-family: ui-monospace, Menlo, monospace;
   font-size: 11px;
   color: var(--text-2);
