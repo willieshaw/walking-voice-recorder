@@ -39,7 +39,6 @@ export function TagChips({
           </button>
         </span>
       ))}
-      {tags.length === 0 && !adding && <span className="tc-empty">No tags yet</span>}
       {adding ? (
         <input
           ref={inputRef}

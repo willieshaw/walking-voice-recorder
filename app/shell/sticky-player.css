@@ -14,6 +14,11 @@
   /* Constant padding in both states — collapse/expand only adds the chapter row below,
    *  so nothing shifts horizontally or resizes; only the card's height changes. */
   padding: 11px 18px;
+  /* Flat until the card sticks to the top; then a quick shadow lifts it off the page. */
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  transition: box-shadow 0.2s ease;
+}
+.sp-card.sp-stuck {
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.07);
 }
 .sp-play {

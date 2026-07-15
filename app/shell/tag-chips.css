@@ -34,11 +34,6 @@
   background: rgba(0, 0, 0, 0.09);
   color: var(--text-2);
 }
-.tc-empty {
-  font-size: 11.5px;
-  color: var(--hairline);
-  font-style: italic;
-}
 .tc-input {
   font: inherit;
   font-size: 11.5px;

@@ -326,7 +326,19 @@ export default function App() {
                       title={note.pinned ? "Unpin" : "Pin to sidebar"}
                       onClick={() => void patchLabels(note.id, { pinned: !note.pinned })}
                     >
-                      {note.pinned ? "★" : "☆"}
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill={note.pinned ? "currentColor" : "none"}
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M12 17v5" />
+                        <path d="M9 10.8V4h6v6.8l2 3.2H7l2-3.2z" />
+                      </svg>
                     </button>
                     <button className="ghost-btn" onClick={exportNote} title="Download JSON">
                       Export

@@ -123,7 +123,7 @@ export function StickyPlayer({ note }: { note: Note }) {
     <div className="sp-sticky">
       <AudioPlayer src={note.audioUrl} hidden />
       <div
-        className="sp-card"
+        className={`sp-card${scrolled ? " sp-stuck" : ""}`}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
       >

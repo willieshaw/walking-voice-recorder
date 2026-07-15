@@ -285,9 +285,16 @@ body {
   flex-shrink: 0;
 }
 .pin-btn {
-  font-size: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
 }
-.pin-on {
+.pin-btn:hover {
+  color: var(--text-2);
+}
+.pin-on,
+.pin-on:hover {
   color: var(--accent);
 }
 h2.memo-title {
