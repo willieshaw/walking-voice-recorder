@@ -20,12 +20,6 @@
   font-size: 14px;
   font-weight: 600;
 }
-.fm-hint {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--hairline);
-  font-family: ui-monospace, Menlo, monospace;
-}
 .fm-body {
   display: flex;
   height: 56vh;

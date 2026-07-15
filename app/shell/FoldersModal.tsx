@@ -65,7 +65,6 @@ export function FoldersModal({
             <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
           </svg>
           <span className="fm-title">Folders</span>
-          <span className="fm-hint">drag a note to move it · double-click a folder to rename</span>
         </div>
         <div className="fm-body">
           <div className="fm-left">
