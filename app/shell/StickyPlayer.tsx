@@ -4,10 +4,12 @@
 // Purely a focus-store consumer — the hidden AudioPlayer owns currentTime.
 import { useEffect, useRef, useState } from "react";
 import type { Annotation, Note } from "@core/types";
+import type { CombinedSegment } from "@core/combine";
 import { deriveAnnotations } from "@core/annotations";
 import { useFocus } from "@core/focus";
 import { AudioPlayer, formatTime } from "../components/AudioPlayer";
-import { getPeaks } from "../lib/peaks";
+import { ChainedAudioPlayer } from "../components/ChainedAudioPlayer";
+import { getCombinedPeaks, getPeaks } from "../lib/peaks";
 import "./sticky-player.css";
 
 const WAVE_HEIGHT = 32;
@@ -40,7 +42,7 @@ function cssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-export function StickyPlayer({ note }: { note: Note }) {
+export function StickyPlayer({ note, segments }: { note: Note; segments?: CombinedSegment[] }) {
   const currentTime = useFocus((s) => s.currentTime);
   const isPlaying = useFocus((s) => s.isPlaying);
   const seek = useFocus((s) => s.seek);
@@ -88,16 +90,23 @@ export function StickyPlayer({ note }: { note: Note }) {
     return () => window.clearTimeout(t);
   }, [stuck]);
 
+  // A combined note stitches one waveform from its sources; a plain note decodes its own blob.
+  const segKey = segments?.map((s) => s.noteId).join(",");
   useEffect(() => {
     let cancelled = false;
     setPeaks(null);
-    getPeaks(note.id, note.audioUrl, BUCKETS)
+    const load =
+      segments && segments.length
+        ? getCombinedPeaks(segments, BUCKETS)
+        : getPeaks(note.id, note.audioUrl, BUCKETS);
+    load
       .then((p) => !cancelled && setPeaks(p))
       .catch(() => {}); // no waveform (undecodable audio) — the bars row still works
     return () => {
       cancelled = true;
     };
-  }, [note.id, note.audioUrl]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note.id, note.audioUrl, segKey]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -141,7 +150,11 @@ export function StickyPlayer({ note }: { note: Note }) {
 
   return (
     <div className="sp-sticky" ref={rootRef}>
-      <AudioPlayer src={note.audioUrl} hidden />
+      {segments && segments.length ? (
+        <ChainedAudioPlayer segments={segments} />
+      ) : (
+        <AudioPlayer src={note.audioUrl} hidden />
+      )}
       <div
         className={`sp-card${stuck ? " sp-stuck" : ""}${expanded ? "" : " sp-min"}`}
         onMouseEnter={() => setHover(true)}

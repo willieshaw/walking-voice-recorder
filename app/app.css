@@ -285,6 +285,38 @@ body {
   border-radius: 50%;
   background: #d4d4d8;
 }
+/* Subtle caption under the player on a combined note. */
+.memo-combined {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: -12px 0 24px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.memo-combined svg {
+  flex: none;
+}
+.memo-combined strong {
+  font-weight: 600;
+  color: var(--text-2);
+}
+.memo-combined-edit {
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text-2);
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 2px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.memo-combined-edit:hover {
+  color: var(--text);
+}
+
 .memo-title-row {
   display: flex;
   align-items: baseline;

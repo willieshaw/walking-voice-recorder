@@ -9,7 +9,9 @@ import { StickyPlayer } from "./shell/StickyPlayer";
 import { ReadingPane } from "./shell/ReadingPane";
 import { DigestCard } from "./shell/DigestCard";
 import { MemoMenu } from "./shell/MemoMenu";
+import { CombineModal } from "./shell/CombineModal";
 import { SettingsPage } from "./shell/SettingsPage";
+import { isCombined, resolveCombined, type Combined } from "@core/combine";
 
 /** The subset of an annotation a user can mutate (currently just a to-do's done state). */
 type AnnotationPatch = Partial<Pick<Annotation, "done">>;
@@ -43,6 +45,9 @@ export default function App() {
   const [summaries, setSummaries] = useState<NoteSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [note, setNote] = useState<Note | null>(null);
+  // The resolved combined view (synthetic note + audio segments) when `note` is combined.
+  const [combined, setCombined] = useState<Combined | null>(null);
+  const [combineOpen, setCombineOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [keysReady, setKeysReady] = useState(hasKeys());
   const [upgrading, setUpgrading] = useState(false);
@@ -56,6 +61,9 @@ export default function App() {
   // revoke the previous when a new note loads (and on unmount) — otherwise every note we
   // open leaks its audio blob into memory until a full reload.
   const audioUrlRef = useRef<string | null>(null);
+  // Object URLs minted for a combined note's source clips — revoked when the combination or
+  // the open note changes, so stitched playback doesn't leak a blob URL per source.
+  const combinedUrlsRef = useRef<string[]>([]);
 
   useEffect(() => {
     // Drop trashed notes whose 30-day window lapsed, then load the rest.
@@ -225,31 +233,75 @@ export default function App() {
     }
   }
 
+  /** Resolve (or clear) the combined view for a host note: load its source clips, revoke any
+   *  from a prior combination, and build the synthetic combined note. Shared by the note-load
+   *  effect and by saving/removing a combination (which don't change `selectedId`). */
+  async function loadCombined(host: Note, isCancelled?: () => boolean) {
+    combinedUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+    combinedUrlsRef.current = [];
+    if (!isCombined(host)) {
+      setCombined(null);
+      return;
+    }
+    const loaded = await Promise.all((host.combinedFrom ?? []).map((id) => getNote(id)));
+    if (isCancelled?.()) {
+      loaded.forEach((n) => n && URL.revokeObjectURL(n.audioUrl));
+      return;
+    }
+    const sources = loaded.filter((n): n is Note => !!n);
+    combinedUrlsRef.current = sources.map((s) => s.audioUrl);
+    setCombined(resolveCombined(host, sources));
+  }
+
   useEffect(() => {
     if (!selectedId) return;
     setNote(null);
+    setCombined(null);
     setError(null);
     setUpgradeError(null);
     resetFocus();
+    let cancelled = false;
     getNote(selectedId)
-      .then((n) => {
-        if (!n) return;
+      .then(async (n) => {
+        if (!n || cancelled) return;
         if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
         audioUrlRef.current = n.audioUrl;
         setNote(n);
+        await loadCombined(n, () => cancelled);
       })
-      .catch((e) => setError(String(e)));
+      .catch((e) => !cancelled && setError(String(e)));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, resetFocus]);
 
-  // Free the last note's audio object URL when the app unmounts.
+  /** Save (or clear, when fewer than 2) a combination and re-resolve it in place — the open
+   *  note doesn't change, so we rebuild the combined view directly rather than via reload. */
+  async function applyCombination(order: string[]) {
+    if (!note) return;
+    const value = order.length >= 2 ? order : undefined;
+    await updateNote(note.id, { combinedFrom: value });
+    const host = { ...note, combinedFrom: value };
+    setCombineOpen(false);
+    resetFocus();
+    setNote(host);
+    await loadCombined(host);
+  }
+
+  // Free the open note's audio URL, plus any combined-source URLs, when the app unmounts.
   useEffect(
     () => () => {
       if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+      combinedUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
     },
     [],
   );
 
   const summary = note && summaries.find((s) => s.id === note.id);
+  // The note fed to the player / reading pane / digest: the synthetic combined view when this
+  // note is combined, otherwise the note itself. The header/menu/labels always use the host.
+  const activeNote = note ? (combined?.note ?? note) : null;
 
   return (
     <div className="app">
@@ -376,6 +428,8 @@ export default function App() {
                 <MemoMenu
                   folders={folders}
                   currentFolder={note.folder}
+                  combined={isCombined(note)}
+                  onCombine={() => setCombineOpen(true)}
                   onMove={(folder) => {
                     if (folder) rememberFolder(folder);
                     void patchLabels(note.id, { folder });
@@ -397,7 +451,7 @@ export default function App() {
                   )}
                   {summary ? formatNoteDate(summary.createdAt) : ""}
                   <span className="memo-dot" />
-                  {formatTime(note.durationSec)}
+                  {formatTime(activeNote?.durationSec ?? note.durationSec)}
                 </div>
                 <div className="memo-title-row">
                   <EditableTitle
@@ -434,15 +488,30 @@ export default function App() {
                   onChange={(tags) => void patchLabels(note.id, { tags })}
                 />
 
-                <StickyPlayer note={note} />
+                <StickyPlayer note={activeNote ?? note} segments={combined?.segments} />
+
+                {combined && (
+                  <div className="memo-combined">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+                      <path d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                    <span>
+                      Combined from <strong>{combined.segments.length}</strong> notes
+                    </span>
+                    <button className="memo-combined-edit" onClick={() => setCombineOpen(true)}>
+                      Edit
+                    </button>
+                  </div>
+                )}
 
                 <DigestCard
-                  note={note}
+                  note={activeNote ?? note}
+                  combined={!!combined}
                   onToggleTodo={(a) => void patchAnnotation(a, { done: !a.done })}
                   onEnsureSummaryVariant={ensureSummaryVariant}
                 />
 
-                {needsUpgrade && (
+                {needsUpgrade && !combined && (
                   <div className="upgrade-banner">
                     <span>
                       This note can be upgraded with the latest analysis (overview summary,
@@ -459,12 +528,23 @@ export default function App() {
                   </div>
                 )}
 
-                <ReadingPane note={note} />
+                <ReadingPane note={activeNote ?? note} />
               </>
             )}
           </div>
         )}
       </main>
+
+      {combineOpen && note && (
+        <CombineModal
+          hostId={note.id}
+          summaries={live}
+          initial={note.combinedFrom ?? []}
+          onClose={() => setCombineOpen(false)}
+          onDone={(order) => void applyCombination(order)}
+          onRemove={() => void applyCombination([])}
+        />
+      )}
 
       {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} onOpen={openMemo} />}
       {foldersOpen && (

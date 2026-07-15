@@ -145,6 +145,10 @@ export interface Note {
   /** Soft delete (same label facet): set when the user deletes the note. Trashed notes are
    *  a filtered view in Settings ("Recently deleted") until restored or purged at 30 days. */
   deletedAt?: number;
+  /** Combination: an ordered list of note ids (including this host) to play as one. A pure
+   *  reference list — the sources stay independent everywhere; the combined note is composed
+   *  on read (see core/combine.ts). Absent or <2 ids = a plain, uncombined note. */
+  combinedFrom?: string[];
   transcript?: Transcript;
   layers?: FormattingLayers;
   keymoments?: KeyMoment[];

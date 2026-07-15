@@ -18,7 +18,10 @@ type Mode = "raw" | "clean";
 function ReadingList({ items }: { items: Chunk[] }) {
   const currentTime = useFocus((s) => s.currentTime);
   const seek = useFocus((s) => s.seek);
-  const activeId = items.find((c) => currentTime >= c.tStart && currentTime < c.tEnd)?.id;
+  // Headings are section titles (combined notes), not seekable body — skip them here.
+  const activeId = items.find(
+    (c) => c.kind !== "heading" && currentTime >= c.tStart && currentTime < c.tEnd,
+  )?.id;
 
   if (items.length === 0) {
     return <p className="cr-empty">Nothing here yet for this note.</p>;
@@ -26,17 +29,28 @@ function ReadingList({ items }: { items: Chunk[] }) {
 
   return (
     <article className="cr-read">
-      {items.map((c) => (
-        <p
-          key={c.id}
-          className={`cr-para${c.id === activeId ? " cr-active" : ""}`}
-          data-ts={formatTime(c.tStart)}
-          onClick={() => seek(c.tStart, { activeChunkId: c.id })}
-          title={`Jump to ${formatTime(c.tStart)}`}
-        >
-          {c.text}
-        </p>
-      ))}
+      {items.map((c) =>
+        c.kind === "heading" ? (
+          <h3
+            key={c.id}
+            className="cr-section"
+            onClick={() => seek(c.tStart)}
+            title={`Jump to ${formatTime(c.tStart)}`}
+          >
+            {c.text}
+          </h3>
+        ) : (
+          <p
+            key={c.id}
+            className={`cr-para${c.id === activeId ? " cr-active" : ""}`}
+            data-ts={formatTime(c.tStart)}
+            onClick={() => seek(c.tStart, { activeChunkId: c.id })}
+            title={`Jump to ${formatTime(c.tStart)}`}
+          >
+            {c.text}
+          </p>
+        ),
+      )}
     </article>
   );
 }

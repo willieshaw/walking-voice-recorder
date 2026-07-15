@@ -11,10 +11,13 @@ import "./digest-card.css";
 
 export function DigestCard({
   note,
+  combined = false,
   onToggleTodo,
   onEnsureSummaryVariant,
 }: {
   note: Note;
+  /** A combined note's summary is a merged blurb — no per-variant regeneration. */
+  combined?: boolean;
   onToggleTodo: (annotation: Annotation) => void;
   onEnsureSummaryVariant: (variantId: string) => Promise<void>;
 }) {
@@ -45,7 +48,7 @@ export function DigestCard({
   const variantText =
     variant.id === DEFAULT_VARIANT ? note.summary : note.summaries?.[variant.id];
   // We can offer the toggle only when there's a transcript to build alternates from.
-  const canVary = Boolean(note.transcript);
+  const canVary = !combined && Boolean(note.transcript);
 
   async function generate(id: string) {
     const cached = id === DEFAULT_VARIANT ? !!note.summary : !!note.summaries?.[id];

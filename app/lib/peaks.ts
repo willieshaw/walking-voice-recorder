@@ -1,5 +1,6 @@
 // Waveform peak extraction: decode the note's audio blob once and downsample to a small
 // bar array. The decoded buffer is dropped immediately — only ~300 floats are kept.
+import type { CombinedSegment } from "@core/combine";
 
 const cache = new Map<string, Float32Array>();
 
@@ -36,4 +37,26 @@ export async function getPeaks(
   } finally {
     void ctx.close();
   }
+}
+
+/** One waveform for a combined note: each source's peaks, allotted buckets in proportion to
+ *  its duration and concatenated end-to-end so the bar row reads as one stitched timeline. */
+export async function getCombinedPeaks(
+  segments: CombinedSegment[],
+  buckets: number,
+): Promise<Float32Array> {
+  const total = segments.reduce((sum, s) => sum + s.duration, 0) || 1;
+  const parts = await Promise.all(
+    segments.map((s) => {
+      const share = Math.max(2, Math.round((buckets * s.duration) / total));
+      return getPeaks(s.noteId, s.audioUrl, share);
+    }),
+  );
+  const out = new Float32Array(parts.reduce((n, p) => n + p.length, 0));
+  let at = 0;
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.length;
+  }
+  return out;
 }

@@ -7,11 +7,16 @@ import "./memo-menu.css";
 export function MemoMenu({
   folders,
   currentFolder,
+  combined = false,
+  onCombine,
   onMove,
   onDelete,
 }: {
   folders: string[];
   currentFolder?: string;
+  /** True when this note already has a combination — flips the label to "Edit combination…". */
+  combined?: boolean;
+  onCombine: () => void;
   onMove: (folder: string | undefined) => void;
   onDelete: () => void;
 }) {
@@ -61,6 +66,19 @@ export function MemoMenu({
         <div className="mm-pop" role="menu">
           {!picking ? (
             <>
+              <button
+                className="mm-item"
+                role="menuitem"
+                onClick={() => {
+                  close();
+                  onCombine();
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+                  <path d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                {combined ? "Edit combination…" : "Combine notes…"}
+              </button>
               <button className="mm-item" role="menuitem" onClick={() => setPicking(true)}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
                   <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
