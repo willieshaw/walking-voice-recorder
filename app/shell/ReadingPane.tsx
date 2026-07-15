@@ -155,19 +155,31 @@ function LayerView({ note, level }: { note: Note; level: 1 | 2 }) {
   if (!active) return <p className="hint">Nothing here yet for this note.</p>;
   const activeId = active.chunks.find((c) => currentTime >= c.tStart && currentTime < c.tEnd)?.id;
 
+  // A chunk is only a seek target when it advances the timeline. Consecutive chunks that
+  // resolve to the same moment (a heading + its prose, split paragraphs) render as plain
+  // continuation copy — one timestamp, one clickable region per distinct time.
+  let lastShownT = -Infinity;
   const render = (c: Chunk) => {
-    const cls = `cc2-chunk${c.id === activeId ? " cc2-active" : ""}`;
-    const onClick = () => seek(c.tStart, { activeChunkId: c.id });
-    const title = `Jump to ${formatTime(c.tStart)}`;
-    const ts = formatTime(c.tStart);
+    const isNewTime = c.tStart > lastShownT + 0.5;
+    if (isNewTime) lastShownT = c.tStart;
+    const cls = `cc2-chunk${c.id === activeId ? " cc2-active" : ""}${
+      isNewTime ? "" : " cc2-cont"
+    }`;
+    const seekProps = isNewTime
+      ? {
+          onClick: () => seek(c.tStart, { activeChunkId: c.id }),
+          title: `Jump to ${formatTime(c.tStart)}`,
+          "data-ts": formatTime(c.tStart),
+        }
+      : {};
     if (c.kind === "heading")
       return (
-        <h2 key={c.id} className={cls} data-ts={ts} onClick={onClick} title={title}>
+        <h2 key={c.id} className={cls} {...seekProps}>
           {c.text}
         </h2>
       );
     return (
-      <p key={c.id} className={cls} data-ts={ts} onClick={onClick} title={title}>
+      <p key={c.id} className={cls} {...seekProps}>
         {c.kind === "bullet" ? "• " : ""}
         {c.text}
       </p>

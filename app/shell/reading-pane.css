@@ -106,6 +106,19 @@ h2.cc2-chunk::before {
   top: 0.55em;
 }
 
+/* Continuation copy: same timestamp as the chunk above, so it isn't a separate seek
+ *  target — plain text, no hover affordance, no gutter time. (After the gutter rules so
+ *  content: none wins at equal specificity.) */
+.cc2-cont {
+  cursor: default;
+}
+.cc2-cont:hover {
+  background: none;
+}
+.cc2-chunk.cc2-cont::before {
+  content: none;
+}
+
 /* Inline directive cards (Raw mode) — todo (green) + media (blue), per the Margin design */
 .dir-todo {
   display: flex;
