@@ -258,6 +258,16 @@ body {
   padding: 0;
   margin-bottom: 24px;
 }
+/* The memo's top row: back nav on the left, the "…" menu level with it on the right. */
+.memo-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.memo-top .back-btn {
+  margin-bottom: 0;
+}
 .back-btn:hover {
   color: var(--text);
 }
@@ -340,34 +350,6 @@ h2.memo-title:hover {
   background: rgba(0, 0, 0, 0.05);
 }
 
-/* Hover tooltip utility (e.g. the disabled Export button). */
-.tip {
-  position: relative;
-  display: inline-flex;
-}
-.tip::after {
-  content: attr(data-tip);
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  background: var(--text);
-  color: #fff;
-  font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.12s ease;
-}
-.tip:hover::after {
-  opacity: 1;
-}
-/* Let the wrapper own hover so the tooltip shows even though the button is disabled. */
-.tip .ghost-btn {
-  pointer-events: none;
-}
 .ghost-btn {
   font-family: inherit;
   font-size: 12.5px;

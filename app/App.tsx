@@ -249,26 +249,6 @@ export default function App() {
     [],
   );
 
-  function exportNote() {
-    if (!note) return;
-    const payload = {
-      id: note.id,
-      title: note.title,
-      durationSec: note.durationSec,
-      transcript: note.transcript,
-      summary: note.summary,
-      layers: note.layers,
-      keymoments: note.keymoments,
-      annotations: note.annotations,
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${note.id}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-
   const summary = note && summaries.find((s) => s.id === note.id);
 
   return (
@@ -388,9 +368,22 @@ export default function App() {
           />
         ) : (
           <div className="memo">
-            <button className="back-btn" onClick={goLibrary}>
-              ← Library
-            </button>
+            <div className="memo-top">
+              <button className="back-btn" onClick={goLibrary}>
+                ← Library
+              </button>
+              {note && (
+                <MemoMenu
+                  folders={folders}
+                  currentFolder={note.folder}
+                  onMove={(folder) => {
+                    if (folder) rememberFolder(folder);
+                    void patchLabels(note.id, { folder });
+                  }}
+                  onDelete={() => void handleDelete(note.id)}
+                />
+              )}
+            </div>
             {error && <p className="error">{error}</p>}
             {!note && !error && selectedId && <p className="hint">Loading…</p>}
             {note && (
@@ -434,25 +427,6 @@ export default function App() {
                         <path d="M9 10.8V4h6v6.8l2 3.2H7l2-3.2z" />
                       </svg>
                     </button>
-                    <span className="tip" data-tip="Coming soon">
-                      <button
-                        className="ghost-btn"
-                        onClick={exportNote}
-                        disabled
-                        aria-disabled="true"
-                      >
-                        Export
-                      </button>
-                    </span>
-                    <MemoMenu
-                      folders={folders}
-                      currentFolder={note.folder}
-                      onMove={(folder) => {
-                        if (folder) rememberFolder(folder);
-                        void patchLabels(note.id, { folder });
-                      }}
-                      onDelete={() => void handleDelete(note.id)}
-                    />
                   </div>
                 </div>
                 <TagChips
