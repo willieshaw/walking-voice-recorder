@@ -3,6 +3,7 @@
 // single source of truth for playback.
 import { useEffect, useRef, useState } from "react";
 import type { Note } from "@core/types";
+import { deriveAnnotations } from "@core/annotations";
 import { useFocus } from "@core/focus";
 import { formatTime } from "../../components/AudioPlayer";
 import type { Experience } from "../types";
@@ -25,7 +26,7 @@ function AudioScrubber({ note }: { note: Note }) {
   // The stored duration is the stable timeline length (focus duration is 0 until the
   // audio element loads its metadata).
   const duration = note.durationSec || 1;
-  const moments = note.keymoments ?? [];
+  const moments = deriveAnnotations(note).filter((a) => a.kind === "moment");
 
   useEffect(() => {
     let cancelled = false;

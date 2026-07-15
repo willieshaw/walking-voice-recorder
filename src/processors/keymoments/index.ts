@@ -1,30 +1,24 @@
 // A derived branch off the transcript: the handful of spans worth jumping to. Timestamps
 // are resolved locally from the paragraph ids the model cited; a moment with no valid
 // citation is dropped — a marker at a made-up time is worse than no marker.
-import type { Chunk, KeyMoment, Transcript } from "../../core/types.js";
+import type { KeyMoment, Transcript } from "../../core/types.js";
+import { assembleAnnotations } from "../../core/annotations.js";
 import type { Ctx, Processor } from "../types.js";
 import { buildPrompt, keyMomentsSchema, SYSTEM, type KeyMomentsResult } from "./prompt.js";
 
-/** Resolve cited paragraph ids into timestamped moments. Shared by Node and browser. */
+/** Resolve cited paragraph ids into timestamped moments. Shares the one span resolver
+ *  (`assembleAnnotations`) with every other annotation kind, then narrows to the legacy
+ *  `KeyMoment` shape the stored `keymoments` artifact still uses. */
 export function assembleKeyMoments(
   transcript: Transcript,
   result: KeyMomentsResult,
 ): KeyMoment[] {
-  const byId = new Map(transcript.paragraphs.map((p) => [p.id, p]));
-  return result.moments
-    .flatMap((m) => {
-      const sources = m.sourceIds.map((id) => byId.get(id)).filter((c): c is Chunk => !!c);
-      if (!sources.length) return []; // no valid citation — drop
-      return [
-        {
-          label: m.label,
-          tStart: Math.min(...sources.map((s) => s.tStart)),
-          tEnd: Math.max(...sources.map((s) => s.tEnd)),
-        },
-      ];
-    })
-    .sort((a, b) => a.tStart - b.tStart)
-    .map((m, i) => ({ id: `km-${i}`, ...m }));
+  const annotations = assembleAnnotations(
+    transcript,
+    result.moments.map((m) => ({ kind: "moment" as const, label: m.label, sourceIds: m.sourceIds })),
+    "km",
+  );
+  return annotations.map(({ id, label, tStart, tEnd }) => ({ id, label, tStart, tEnd }));
 }
 
 /** The LLM prompt + schema, exposed so any caller (Node or browser) can run the model
