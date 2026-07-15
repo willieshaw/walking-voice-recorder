@@ -1,13 +1,24 @@
 // Browser structuring calls. OpenAI blocks direct browser calls (confirmed by CORS
 // check), so these post to our stateless /api/structure pass-through — reusing the exact
 // same prompts, schemas, and assembly as the Node pipeline.
-import type { Chunk, Concept, FormattingLayers, KeyMoment, Transcript } from "@core/types";
+import type {
+  Annotation,
+  Chunk,
+  Concept,
+  FormattingLayers,
+  KeyMoment,
+  Transcript,
+} from "@core/types";
 import { assembleLayers, layersLlmRequest } from "@engine/processors/layers/index";
 import type { LayersResult } from "@engine/processors/layers/prompt";
 import { assembleKeyMoments, keyMomentsLlmRequest } from "@engine/processors/keymoments/index";
 import type { KeyMomentsResult } from "@engine/processors/keymoments/prompt";
 import { assembleConcepts, conceptsLlmRequest } from "@engine/processors/concepts/index";
 import type { ConceptsResult } from "@engine/processors/concepts/prompt";
+import { assembleSummary, summaryLlmRequest } from "@engine/processors/summary/index";
+import type { SummaryResult } from "@engine/processors/summary/prompt";
+import { assembleDirectives, directivesLlmRequest } from "@engine/processors/directives/index";
+import type { DirectivesResult } from "@engine/processors/directives/prompt";
 import { getKeys } from "../keys";
 
 interface LlmRequest {
@@ -65,4 +76,17 @@ export async function buildConcepts(transcript: Transcript): Promise<Concept[]> 
     transcript.paragraphs,
   );
   return assembleConcepts(transcript, result);
+}
+
+export async function buildSummary(transcript: Transcript): Promise<string> {
+  const result = await callStructure<SummaryResult>(summaryLlmRequest, transcript.paragraphs);
+  return assembleSummary(transcript, result);
+}
+
+export async function buildDirectives(transcript: Transcript): Promise<Annotation[]> {
+  const result = await callStructure<DirectivesResult>(
+    directivesLlmRequest,
+    transcript.paragraphs,
+  );
+  return assembleDirectives(transcript, result);
 }

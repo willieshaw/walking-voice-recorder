@@ -1,0 +1,149 @@
+.dg-card {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 14px;
+  margin-bottom: 26px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+.dg-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 20px;
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.dg-head:hover {
+  background: rgba(0, 0, 0, 0.015);
+}
+.dg-eyebrow {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  flex: none;
+}
+.dg-teaser {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dg-count {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+.dg-count-box {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--todo);
+  border-radius: 3px;
+}
+.dg-caret {
+  flex: none;
+  margin-left: auto;
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+.dg-caret-open {
+  transform: rotate(90deg);
+}
+
+.dg-body {
+  padding: 4px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.dg-section + .dg-section {
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  padding-top: 20px;
+}
+.dg-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 11px;
+}
+.dg-summary {
+  margin: 0;
+  font-family: "Newsreader", serif;
+  font-size: 15px;
+  line-height: 1.55;
+  color: #3f3f46;
+}
+.dg-points {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.dg-point {
+  display: flex;
+  gap: 9px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: #3f3f46;
+}
+.dg-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text);
+  margin-top: 6px;
+  flex: none;
+}
+.dg-todos {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dg-todo {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 4px 0;
+  cursor: pointer;
+}
+.dg-box {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  border: 1.5px solid rgba(0, 0, 0, 0.28);
+  background: transparent;
+  color: #fff;
+  font-size: 11px;
+  line-height: 13px;
+  text-align: center;
+  flex: none;
+  margin-top: 1px;
+  transition: all 0.15s;
+}
+.dg-box-done {
+  border-color: var(--todo);
+  background: var(--todo);
+}
+.dg-todo-text {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #3f3f46;
+  transition: color 0.15s;
+}
+.dg-todo-done {
+  color: var(--muted);
+  text-decoration: line-through;
+}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Note } from "@core/types";
+import type { Annotation, Note } from "@core/types";
 import { useFocus } from "@core/focus";
 import { formatTime } from "./components/AudioPlayer";
 import { DropZone } from "./components/DropZone";
@@ -7,13 +7,19 @@ import { SettingsKeys } from "./components/SettingsKeys";
 import { EditableTitle } from "./components/EditableTitle";
 import { LibraryFeed, formatNoteDate } from "./shell/LibraryFeed";
 import { StickyPlayer } from "./shell/StickyPlayer";
-import { ReadingPane } from "./shell/ReadingPane";
+import { ReadingPane, type AnnotationPatch } from "./shell/ReadingPane";
+import { DigestCard } from "./shell/DigestCard";
 import { SearchModal } from "./shell/SearchModal";
 import { FoldersModal } from "./shell/FoldersModal";
 import { TagChips } from "./shell/TagChips";
 import { allFolders, rememberFolder } from "./lib/folders";
 import { hasKeys } from "./lib/keys";
-import { buildConcepts, buildKeyMoments } from "./lib/providers/openaiLlm";
+import {
+  buildConcepts,
+  buildDirectives,
+  buildKeyMoments,
+  buildSummary,
+} from "./lib/providers/openaiLlm";
 import {
   getNote,
   listNotes,
@@ -72,6 +78,18 @@ export default function App() {
     setNote((prev) => (prev && prev.id === id ? { ...prev, ...patch } : prev));
   }
 
+  /** Persist a user mutation on one annotation (done / dismissed / attached media) —
+   *  the whole list is one field on the note, so this is just another updateNote. */
+  async function patchAnnotation(a: Annotation, patch: AnnotationPatch) {
+    const target = note;
+    if (!target) return;
+    const annotations = (target.annotations ?? []).map((x) =>
+      x.id === a.id ? { ...x, ...patch } : x,
+    );
+    await updateNote(target.id, { annotations });
+    setNote((prev) => (prev && prev.id === target.id ? { ...prev, annotations } : prev));
+  }
+
   function openMemo(id: string) {
     setSelectedId(id);
     setView("memo");
@@ -93,9 +111,11 @@ export default function App() {
     setNote((prev) => (prev && prev.id === id ? { ...prev, title } : prev));
   }
 
-  // Older notes were processed before key moments/concepts existed; they can be
-  // upgraded from the stored transcript alone (no re-transcription, purely additive).
-  const needsUpgrade = !!note?.transcript && (!note.keymoments || !note.concepts);
+  // Older notes were processed before the newer analyses existed; they can be upgraded
+  // from the stored transcript alone (no re-transcription, purely additive).
+  const needsUpgrade =
+    !!note?.transcript &&
+    (!note.keymoments || !note.concepts || note.summary === undefined || !note.annotations);
 
   async function handleUpgrade() {
     const target = note;
@@ -103,13 +123,17 @@ export default function App() {
     setUpgrading(true);
     setUpgradeError(null);
     try {
-      const [keymoments, concepts] = await Promise.all([
+      const [keymoments, concepts, noteSummary, annotations] = await Promise.all([
         target.keymoments ?? buildKeyMoments(target.transcript),
         target.concepts ?? buildConcepts(target.transcript),
+        target.summary ?? buildSummary(target.transcript),
+        target.annotations ?? buildDirectives(target.transcript),
       ]);
-      await updateNote(target.id, { keymoments, concepts });
+      await updateNote(target.id, { keymoments, concepts, summary: noteSummary, annotations });
       setNote((prev) =>
-        prev && prev.id === target.id ? { ...prev, keymoments, concepts } : prev,
+        prev && prev.id === target.id
+          ? { ...prev, keymoments, concepts, summary: noteSummary, annotations }
+          : prev,
       );
     } catch (e) {
       setUpgradeError(e instanceof Error ? e.message : String(e));
@@ -136,6 +160,7 @@ export default function App() {
       title: note.title,
       durationSec: note.durationSec,
       transcript: note.transcript,
+      summary: note.summary,
       layers: note.layers,
       keymoments: note.keymoments,
       annotations: note.annotations,
@@ -299,11 +324,16 @@ export default function App() {
 
                 <StickyPlayer note={note} />
 
+                <DigestCard
+                  note={note}
+                  onToggleTodo={(a) => void patchAnnotation(a, { done: !a.done })}
+                />
+
                 {needsUpgrade && (
                   <div className="upgrade-banner">
                     <span>
-                      This note can be upgraded with the latest analysis (key moments and
-                      concepts). Nothing existing is changed.
+                      This note can be upgraded with the latest analysis (overview summary,
+                      key moments, and extracted to-dos). Nothing existing is changed.
                     </span>
                     <button
                       className="ghost-btn"
@@ -316,7 +346,10 @@ export default function App() {
                   </div>
                 )}
 
-                <ReadingPane note={note} />
+                <ReadingPane
+                  note={note}
+                  onPatchAnnotation={(a, patch) => void patchAnnotation(a, patch)}
+                />
               </>
             )}
           </div>

@@ -11,6 +11,8 @@ export type ArtifactKind =
   | "layers"
   | "keymoments"
   | "concepts"
+  | "summary"
+  | "directives"
   | "embeddings";
 
 /** Seconds into the recording. The universal join key across every experience. */
@@ -83,6 +85,8 @@ export interface Annotation {
   tEnd: Seconds;
   /** kind "todo": user-toggled done state (persisted, not LLM output). */
   done?: boolean;
+  /** User set this directive aside (persisted, not LLM output). Hidden inline, kept as data. */
+  dismissed?: boolean;
   /** kind "media": user-attached media (persisted, not LLM output). */
   media?: { url: string; source: "found" | "uploaded" };
 }
@@ -114,6 +118,8 @@ export interface ArtifactPayloads {
   layers: FormattingLayers;
   keymoments: KeyMoment[];
   concepts: Concept[];
+  summary: string;
+  directives: Annotation[];
   embeddings: Embeddings;
 }
 
@@ -144,6 +150,8 @@ export interface Note {
   keymoments?: KeyMoment[];
   /** The composable span primitive (moments/todos/media). Read via `deriveAnnotations`. */
   annotations?: Annotation[];
+  /** A 2–3 sentence digest of the recording — the one scalar the Overview card adds. */
+  summary?: string;
   concepts?: Concept[];
   embeddings?: Embeddings;
 }
