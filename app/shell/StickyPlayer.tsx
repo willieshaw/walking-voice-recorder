@@ -1,11 +1,17 @@
-// The memo view's sticky playback bar: play/pause + a YouTube-style chapter strip whose
-// chapters are the note's "moment" annotations, + a clock. Purely a focus-store consumer —
-// the (hidden) AudioPlayer stays the single owner of currentTime.
+// The memo view's sticky playback bar: outlined play button, a real waveform (played
+// bars dark, chapter-start flags), YouTube-style chapter segments beneath it whose titles
+// appear under the segment on hover (the current chapter's title stays visible), + clock.
+// Purely a focus-store consumer — the hidden AudioPlayer owns currentTime.
+import { useEffect, useRef, useState } from "react";
 import type { Annotation, Note } from "@core/types";
 import { deriveAnnotations } from "@core/annotations";
 import { useFocus } from "@core/focus";
 import { AudioPlayer, formatTime } from "../components/AudioPlayer";
+import { getPeaks } from "../lib/peaks";
 import "./sticky-player.css";
+
+const WAVE_HEIGHT = 44;
+const BUCKETS = 110;
 
 interface Chapter {
   label: string | null;
@@ -29,65 +35,152 @@ function toChapters(moments: Annotation[], duration: number): Chapter[] {
   return chapters;
 }
 
+function cssVar(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
 export function StickyPlayer({ note }: { note: Note }) {
   const currentTime = useFocus((s) => s.currentTime);
   const isPlaying = useFocus((s) => s.isPlaying);
   const seek = useFocus((s) => s.seek);
   const togglePlay = useFocus((s) => s.togglePlay);
+  const [peaks, setPeaks] = useState<Float32Array | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const duration = note.durationSec || 1;
   const moments = deriveAnnotations(note).filter((a) => a.kind === "moment");
   const chapters = toChapters(moments, duration);
   const current = chapters.find((c) => currentTime >= c.tStart && currentTime < c.tEnd);
 
+  useEffect(() => {
+    let cancelled = false;
+    setPeaks(null);
+    getPeaks(note.id, note.audioUrl, BUCKETS)
+      .then((p) => !cancelled && setPeaks(p))
+      .catch(() => {}); // no waveform (undecodable audio) — the bars row still works
+    return () => {
+      cancelled = true;
+    };
+  }, [note.id, note.audioUrl]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const wrap = wrapRef.current;
+    if (!canvas || !wrap || !peaks) return;
+
+    function draw() {
+      if (!canvas || !wrap || !peaks) return;
+      const dpr = window.devicePixelRatio || 1;
+      const width = wrap.clientWidth;
+      canvas.width = width * dpr;
+      canvas.height = WAVE_HEIGHT * dpr;
+      const g = canvas.getContext("2d");
+      if (!g) return;
+      g.scale(dpr, dpr);
+
+      const played = cssVar("--text-2") || "#52525b";
+      const unplayed = "#d9d9de";
+      const n = peaks.length;
+      const slot = width / n;
+      const barW = Math.max(slot * 0.6, 1.5);
+      const playedFrac = Math.min(currentTime / duration, 1);
+
+      g.clearRect(0, 0, width, WAVE_HEIGHT);
+      for (let b = 0; b < n; b++) {
+        const h = Math.max(3, peaks[b] * WAVE_HEIGHT);
+        const x = b * slot + (slot - barW) / 2;
+        const y = (WAVE_HEIGHT - h) / 2;
+        g.fillStyle = (b + 0.5) / n <= playedFrac ? played : unplayed;
+        g.beginPath();
+        g.roundRect(x, y, barW, h, barW / 2);
+        g.fill();
+      }
+    }
+
+    draw();
+    const ro = new ResizeObserver(draw);
+    ro.observe(wrap);
+    return () => ro.disconnect();
+  }, [peaks, currentTime, duration]);
+
   return (
     <div className="sp-sticky">
       <AudioPlayer src={note.audioUrl} hidden />
       <div className="sp-card">
-        <button
-          className="sp-play"
-          onClick={togglePlay}
-          aria-label={isPlaying ? "Pause" : "Play"}
-        >
+        <button className="sp-play" onClick={togglePlay} aria-label={isPlaying ? "Pause" : "Play"}>
           {isPlaying ? (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
               <rect x="5" y="4" width="5" height="16" rx="1" />
               <rect x="14" y="4" width="5" height="16" rx="1" />
             </svg>
           ) : (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M7 4.5v15l13-7.5z" />
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 4.5v15l12-7.5z" />
             </svg>
           )}
         </button>
 
-        <div className="sp-strip">
-          {chapters.map((c, i) => {
-            const frac = Math.min(Math.max((currentTime - c.tStart) / (c.tEnd - c.tStart), 0), 1);
-            return (
-              <button
-                key={i}
-                className="sp-chapter"
-                style={{ flexGrow: c.tEnd - c.tStart }}
-                title={c.label ? `${c.label} — ${formatTime(c.tStart)}` : formatTime(c.tStart)}
+        <div className="sp-middle">
+          <div className="sp-wave" ref={wrapRef}>
+            {peaks && (
+              <canvas
+                ref={canvasRef}
+                className="sp-canvas"
+                style={{ height: WAVE_HEIGHT }}
                 onClick={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
-                  const t = c.tStart + ((e.clientX - rect.left) / rect.width) * (c.tEnd - c.tStart);
-                  seek(t);
+                  seek(((e.clientX - rect.left) / rect.width) * duration);
                 }}
-              >
-                <span className="sp-fill" style={{ width: `${frac * 100}%` }} />
-              </button>
-            );
-          })}
+              />
+            )}
+            {peaks &&
+              chapters
+                .filter((c) => c.label)
+                .map((c, i) => (
+                  <span
+                    key={i}
+                    className="sp-flag"
+                    style={{ left: `${(c.tStart / duration) * 100}%` }}
+                  />
+                ))}
+          </div>
+
+          <div className="sp-segrow">
+            {chapters.map((c, i) => {
+              const frac = Math.min(
+                Math.max((currentTime - c.tStart) / (c.tEnd - c.tStart), 0),
+                1,
+              );
+              const active = c === current;
+              return (
+                <div key={i} className="sp-seg" style={{ flexGrow: c.tEnd - c.tStart }}>
+                  <button
+                    className="sp-bar"
+                    title={c.label ? `${c.label} — ${formatTime(c.tStart)}` : formatTime(c.tStart)}
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      seek(
+                        c.tStart + ((e.clientX - rect.left) / rect.width) * (c.tEnd - c.tStart),
+                      );
+                    }}
+                  >
+                    <span className="sp-fill" style={{ width: `${frac * 100}%` }} />
+                  </button>
+                  {c.label && (
+                    <span className={`sp-label${active ? " sp-label-active" : ""}`}>
+                      {c.label}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        <div className="sp-meta">
-          {current?.label && <span className="sp-chapter-label">{current.label}</span>}
-          <span className="sp-clock">
-            {formatTime(currentTime)} / {formatTime(note.durationSec)}
-          </span>
-        </div>
+        <span className="sp-clock">
+          {formatTime(currentTime)} / {formatTime(note.durationSec)}
+        </span>
       </div>
     </div>
   );

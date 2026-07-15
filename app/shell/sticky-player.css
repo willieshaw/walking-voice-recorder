@@ -6,77 +6,120 @@
 }
 .sp-card {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  align-items: flex-start;
+  gap: 16px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 12px 16px;
+  padding: 14px 18px 8px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.07);
 }
 .sp-play {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: none;
+  border: 1.5px solid var(--text);
   border-radius: 50%;
-  background: var(--text);
-  color: var(--surface);
+  background: none;
+  color: var(--text);
   cursor: pointer;
+  margin-top: 4px;
 }
 .sp-play:hover {
-  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent);
 }
-.sp-strip {
+.sp-middle {
   flex: 1;
   min-width: 0;
-  display: flex;
-  gap: 3px;
-  height: 22px;
-  align-items: center;
 }
-.sp-chapter {
+.sp-wave {
   position: relative;
+}
+.sp-canvas {
+  display: block;
+  width: 100%;
+  cursor: pointer;
+}
+.sp-flag {
+  position: absolute;
+  top: -4px;
+  bottom: 0;
+  width: 1.5px;
+  margin-left: -0.75px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.sp-flag::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -3.75px;
+  border-left: 4.5px solid transparent;
+  border-right: 4.5px solid transparent;
+  border-top: 6px solid var(--accent);
+}
+
+.sp-segrow {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+.sp-seg {
   flex-basis: 0;
-  min-width: 6px;
-  height: 6px;
+  min-width: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 28px; /* reserve the label line so hover doesn't shift layout */
+}
+.sp-bar {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 4px;
   padding: 0;
   border: none;
-  border-radius: 4px;
-  background: var(--border);
+  border-radius: 3px;
+  background: #dcdce0;
   overflow: hidden;
   cursor: pointer;
   transition: height 0.12s ease;
 }
-.sp-chapter:hover {
-  height: 12px;
+.sp-seg:hover .sp-bar {
+  height: 7px;
 }
 .sp-fill {
   position: absolute;
   inset: 0 auto 0 0;
   background: var(--accent);
 }
-.sp-meta {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  max-width: 40%;
-  min-width: 0;
-}
-.sp-chapter-label {
-  font-size: 11.5px;
-  color: var(--text-2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.sp-clock {
+.sp-label {
   font-family: ui-monospace, Menlo, monospace;
   font-size: 10.5px;
   color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0; /* titles appear when hovering their section */
+  transition: opacity 0.12s ease;
+}
+.sp-seg:hover .sp-label {
+  opacity: 1;
+}
+.sp-label-active {
+  opacity: 1; /* the chapter under the playhead stays visible */
+  color: var(--accent);
+  font-weight: 600;
+}
+.sp-clock {
+  flex: none;
+  margin-top: 14px;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-2);
   font-variant-numeric: tabular-nums;
 }

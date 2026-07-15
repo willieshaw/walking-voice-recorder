@@ -5,7 +5,7 @@ export const experienceFlags: Record<string, boolean> = {
   "clean-read": true, // "Listen" — transcript synced to audio
   layers: false, // "Layers" — disabled for now; revisit later
   "audio-scrubber": true, // "Scrubber" — waveform with key-moment markers
-  "concept-cloud": true, // "Concepts" — weighted concept cloud
+  "concept-cloud": false, // "Concepts" — removed from the memo view for now
 };
 
 export function isEnabled(id: string): boolean {

@@ -7,7 +7,7 @@ import { deriveAnnotations } from "@core/annotations";
 import { useFocus } from "@core/focus";
 import { formatTime } from "../../components/AudioPlayer";
 import type { Experience } from "../types";
-import { getPeaks } from "./peaks";
+import { getPeaks } from "../../lib/peaks";
 import "./audio-scrubber.css";
 
 const WAVE_HEIGHT = 96;
