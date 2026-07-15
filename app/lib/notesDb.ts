@@ -1,6 +1,6 @@
 // Local-first note storage in the browser (IndexedDB). Each note's audio blob + artifacts
 // live here; nothing is sent to a server. A small hand-rolled IDB wrapper (no dependency).
-import type { Note } from "@core/types";
+import type { Annotation, Note } from "@core/types";
 
 export interface NoteSummary {
   id: string;
@@ -162,4 +162,22 @@ export async function updateNote(
     if (patch.title !== undefined) stored.title = patch.title;
     if (patch.durationSec !== undefined) stored.durationSec = patch.durationSec;
   });
+}
+
+/** Patch one annotation by id inside a single read-modify-write, so concurrent toggles
+ *  each mutate the freshly-stored array instead of clobbering it with a stale copy from
+ *  React state. Returns the new annotations list for the caller to mirror into UI state. */
+export async function updateAnnotation(
+  noteId: string,
+  annotationId: string,
+  patch: Partial<Annotation>,
+): Promise<Annotation[]> {
+  let next: Annotation[] = [];
+  await mutateNote(noteId, (stored) => {
+    next = (stored.data.annotations ?? []).map((a) =>
+      a.id === annotationId ? { ...a, ...patch } : a,
+    );
+    stored.data = { ...stored.data, annotations: next };
+  });
+  return next;
 }

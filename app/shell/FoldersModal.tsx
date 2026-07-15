@@ -1,6 +1,6 @@
 // The Folders modal: browse notes by folder, drag a note onto a folder to move it,
 // create new folders. A folder is just a label on the note — this is a filtered view.
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { NoteSummary } from "../lib/notesDb";
 import { formatNoteDate } from "./LibraryFeed";
 import { formatTime } from "../components/AudioPlayer";
@@ -33,6 +33,9 @@ export function FoldersModal({
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameVal, setRenameVal] = useState("");
   const [menu, setMenu] = useState<{ folder: string; x: number; y: number } | null>(null);
+  // Set when the user cancels (Escape): the input's blur still fires on unmount, and this
+  // tells commitRename to discard instead of applying the edited value.
+  const cancelRename = useRef(false);
 
   const inBrowse = summaries.filter((s) => (browse === null ? true : s.folder === browse));
   const count = (f: string) => summaries.filter((s) => s.folder === f).length;
@@ -46,6 +49,7 @@ export function FoldersModal({
 
   function startRename(f: string) {
     setMenu(null);
+    cancelRename.current = false;
     setRenameVal(f);
     setRenaming(f);
   }
@@ -54,6 +58,10 @@ export function FoldersModal({
     const target = renaming;
     const v = renameVal.trim();
     setRenaming(null);
+    if (cancelRename.current) {
+      cancelRename.current = false;
+      return;
+    }
     if (target && v && v !== target) onRename(target, v);
   }
 
@@ -118,7 +126,10 @@ export function FoldersModal({
                     onKeyDown={(e) => {
                       e.stopPropagation();
                       if (e.key === "Enter") commitRename();
-                      else if (e.key === "Escape") setRenaming(null);
+                      else if (e.key === "Escape") {
+                        cancelRename.current = true;
+                        setRenaming(null);
+                      }
                     }}
                   />
                 ) : (

@@ -25,6 +25,7 @@ import {
   listNotes,
   renameNote,
   saveNote,
+  updateAnnotation,
   updateNote,
   type NoteSummary,
 } from "./lib/notesDb";
@@ -78,15 +79,13 @@ export default function App() {
     setNote((prev) => (prev && prev.id === id ? { ...prev, ...patch } : prev));
   }
 
-  /** Persist a user mutation on one annotation (done / dismissed / attached media) —
-   *  the whole list is one field on the note, so this is just another updateNote. */
+  /** Persist a user mutation on one annotation (e.g. a to-do's done state). Routed through
+   *  updateAnnotation so it's a by-id read-modify-write — concurrent toggles don't clobber
+   *  each other the way a full-array write built from stale React state would. */
   async function patchAnnotation(a: Annotation, patch: AnnotationPatch) {
     const target = note;
     if (!target) return;
-    const annotations = (target.annotations ?? []).map((x) =>
-      x.id === a.id ? { ...x, ...patch } : x,
-    );
-    await updateNote(target.id, { annotations });
+    const annotations = await updateAnnotation(target.id, a.id, patch);
     setNote((prev) => (prev && prev.id === target.id ? { ...prev, annotations } : prev));
   }
 
@@ -95,6 +94,13 @@ export default function App() {
   async function handleRenameFolder(oldName: string, newName: string) {
     const trimmed = newName.trim();
     if (!trimmed || trimmed === oldName) return;
+    // Renaming onto an existing folder merges the two — confirm before collapsing them.
+    if (
+      folders.includes(trimmed) &&
+      !window.confirm(`Merge "${oldName}" into the existing folder "${trimmed}"?`)
+    ) {
+      return;
+    }
     renameFolder(oldName, trimmed);
     const affected = summaries.filter((s) => s.folder === oldName);
     await Promise.all(affected.map((s) => updateNote(s.id, { folder: trimmed })));

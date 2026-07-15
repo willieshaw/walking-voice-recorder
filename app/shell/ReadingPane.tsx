@@ -1,9 +1,9 @@
 // The memo view's single reading surface with three formatting levels of the same
 // material: Raw (timestamped, seekable transcript), Clean (layers "Cleaned" — filler
 // removed, order kept), and Formatted (layers "Grouped" — thematic headings + prose).
-// Raw also hosts the spoken directives inline — todo/media annotation cards rendered
-// under the paragraph they were spoken in. All modes coordinate through the focus store.
-import { useRef, useState } from "react";
+// Raw also hosts the extracted to-dos inline — a checkbox card under the paragraph each
+// was spoken in. All modes coordinate through the focus store.
+import { useState } from "react";
 import type { Annotation, Chunk, Note } from "@core/types";
 import { deriveAnnotations } from "@core/annotations";
 import { useFocus } from "@core/focus";
@@ -14,7 +14,7 @@ import "./reading-pane.css";
 
 type Mode = "raw" | "clean" | "formatted";
 
-export type AnnotationPatch = Partial<Pick<Annotation, "done" | "dismissed" | "media">>;
+export type AnnotationPatch = Partial<Pick<Annotation, "done">>;
 
 interface DirectiveProps {
   onPatchAnnotation: (a: Annotation, patch: AnnotationPatch) => void;
@@ -47,69 +47,15 @@ function TodoCard({ a, onPatchAnnotation }: { a: Annotation } & DirectiveProps) 
   );
 }
 
-function MediaCard({ a, onPatchAnnotation }: { a: Annotation } & DirectiveProps) {
-  const fileRef = useRef<HTMLInputElement>(null);
-  const attached = a.media?.url;
-
-  function pickFile() {
-    fileRef.current?.click();
-  }
-  function onFile(file: File | undefined) {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () =>
-      onPatchAnnotation(a, { media: { url: String(reader.result), source: "uploaded" } });
-    reader.readAsDataURL(file);
-  }
-
-  return (
-    <div className="dir-media">
-      {attached ? (
-        <img className="dir-thumb-img" src={a.media!.url} alt={a.label} />
-      ) : (
-        <div className="dir-thumb">{a.label}</div>
-      )}
-      <div className="dir-media-body">
-        <span className="dir-tag dir-tag-media">{attached ? "Photo added" : "Media request"}</span>
-        <div className="dir-phrase">“{a.label}”</div>
-        <div className="dir-btnrow">
-          <button className="dir-btn-primary" onClick={pickFile}>
-            {attached ? "Replace" : "Upload"}
-          </button>
-          <button
-            className="dir-btn-ghost"
-            onClick={() =>
-              attached
-                ? onPatchAnnotation(a, { media: undefined })
-                : onPatchAnnotation(a, { dismissed: true })
-            }
-          >
-            {attached ? "Remove" : "Dismiss"}
-          </button>
-        </div>
-      </div>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={(e) => onFile(e.target.files?.[0])}
-      />
-    </div>
-  );
-}
-
-/** The timestamped transcript with directive cards inline. Each todo/media annotation is
- *  rendered under the last paragraph it cites (falling back to the span's start time). */
+/** The timestamped transcript with extracted to-dos inline. Each to-do is rendered under
+ *  the last paragraph it cites (falling back to the span's start time). */
 function RawView({ note, onPatchAnnotation }: { note: Note } & DirectiveProps) {
   const paragraphs = note.transcript?.paragraphs ?? [];
   const currentTime = useFocus((s) => s.currentTime);
   const seek = useFocus((s) => s.seek);
   const activeId = paragraphs.find((p) => currentTime >= p.tStart && currentTime < p.tEnd)?.id;
 
-  const directives = deriveAnnotations(note).filter(
-    (a) => (a.kind === "todo" || a.kind === "media") && !a.dismissed,
-  );
+  const todos = deriveAnnotations(note).filter((a) => a.kind === "todo");
   const anchorOf = (a: Annotation): string | undefined =>
     a.sourceIds?.[a.sourceIds.length - 1] ??
     paragraphs.find((p) => a.tStart >= p.tStart && a.tStart < p.tEnd)?.id;
@@ -130,15 +76,11 @@ function RawView({ note, onPatchAnnotation }: { note: Note } & DirectiveProps) {
           >
             {p.text}
           </p>
-          {directives
+          {todos
             .filter((a) => anchorOf(a) === p.id)
-            .map((a) =>
-              a.kind === "todo" ? (
-                <TodoCard key={a.id} a={a} onPatchAnnotation={onPatchAnnotation} />
-              ) : (
-                <MediaCard key={a.id} a={a} onPatchAnnotation={onPatchAnnotation} />
-              ),
-            )}
+            .map((a) => (
+              <TodoCard key={a.id} a={a} onPatchAnnotation={onPatchAnnotation} />
+            ))}
         </div>
       ))}
     </article>
@@ -155,13 +97,15 @@ function LayerView({ note, level }: { note: Note; level: 1 | 2 }) {
   if (!active) return <p className="hint">Nothing here yet for this note.</p>;
   const activeId = active.chunks.find((c) => currentTime >= c.tStart && currentTime < c.tEnd)?.id;
 
-  // A chunk is only a seek target when it advances the timeline. Consecutive chunks that
-  // resolve to the same moment (a heading + its prose, split paragraphs) render as plain
-  // continuation copy — one timestamp, one clickable region per distinct time.
-  let lastShownT = -Infinity;
+  // A chunk is only a seek target the first time a given moment appears. Chunks that
+  // resolve to a timestamp already shown (a heading + its prose, split paragraphs — they
+  // share the exact resolved tStart) render as plain continuation copy: one timestamp,
+  // one clickable region per distinct time. Keyed on the exact time and tracked as a set,
+  // so it doesn't depend on chunk order or merge genuinely-distinct nearby times.
+  const shownTimes = new Set<number>();
   const render = (c: Chunk) => {
-    const isNewTime = c.tStart > lastShownT + 0.5;
-    if (isNewTime) lastShownT = c.tStart;
+    const isNewTime = !shownTimes.has(c.tStart);
+    if (isNewTime) shownTimes.add(c.tStart);
     const cls = `cc2-chunk${c.id === activeId ? " cc2-active" : ""}${
       isNewTime ? "" : " cc2-cont"
     }`;

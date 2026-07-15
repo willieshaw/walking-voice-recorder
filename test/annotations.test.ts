@@ -41,7 +41,7 @@ describe("assembleAnnotations (the one span resolver)", () => {
 
   it("keeps only the citations that resolved", () => {
     const [a] = assembleAnnotations(TRANSCRIPT, [
-      { kind: "media", label: "photo", sourceIds: ["p0", "p99"] },
+      { kind: "todo", label: "photo", sourceIds: ["p0", "p99"] },
     ]);
     expect(a.sourceIds).toEqual(["p0"]);
   });

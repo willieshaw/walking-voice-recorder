@@ -69,15 +69,15 @@ export interface KeyMoment {
 
 /**
  * The composable span primitive. A labeled span anchored to transcript paragraphs — the
- * shape shared by key moments, extracted to-dos, and spoken media requests. New span-like
- * features add a `kind` (and render a view), not a new stored structure. `KeyMoment` is the
- * legacy predecessor (kind "moment"); `deriveAnnotations` folds it in for old notes.
+ * shape shared by key moments and extracted to-dos. New span-like features add a `kind`
+ * (and render a view), not a new stored structure. `KeyMoment` is the legacy predecessor
+ * (kind "moment"); `deriveAnnotations` folds it in for old notes.
  */
-export type AnnotationKind = "moment" | "todo" | "media";
+export type AnnotationKind = "moment" | "todo";
 export interface Annotation {
   id: string;
   kind: AnnotationKind;
-  /** Short phrase: chapter title / task / media request. */
+  /** Short phrase: chapter title / task. */
   label: string;
   /** Transcript paragraph ids this span was resolved from (provenance). */
   sourceIds?: string[];
@@ -85,10 +85,6 @@ export interface Annotation {
   tEnd: Seconds;
   /** kind "todo": user-toggled done state (persisted, not LLM output). */
   done?: boolean;
-  /** User set this directive aside (persisted, not LLM output). Hidden inline, kept as data. */
-  dismissed?: boolean;
-  /** kind "media": a user-uploaded image (data URL), persisted, not LLM output. */
-  media?: { url: string; source: "uploaded" };
 }
 
 export interface Concept {
@@ -148,7 +144,7 @@ export interface Note {
   transcript?: Transcript;
   layers?: FormattingLayers;
   keymoments?: KeyMoment[];
-  /** The composable span primitive (moments/todos/media). Read via `deriveAnnotations`. */
+  /** The composable span primitive (moments + to-dos). Read via `deriveAnnotations`. */
   annotations?: Annotation[];
   /** A 2–3 sentence digest of the recording — the one scalar the Overview card adds. */
   summary?: string;

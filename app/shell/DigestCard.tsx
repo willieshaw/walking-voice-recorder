@@ -16,7 +16,7 @@ export function DigestCard({
 }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const todos = deriveAnnotations(note).filter((a) => a.kind === "todo" && !a.dismissed);
+  const todos = deriveAnnotations(note).filter((a) => a.kind === "todo");
 
   if (!note.summary && !todos.length) return null;
 

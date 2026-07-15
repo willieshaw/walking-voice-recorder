@@ -15,34 +15,32 @@ const TRANSCRIPT: Transcript = {
 };
 
 describe("assembleDirectives", () => {
-  it("maps todo and media items onto Annotation spans with their kinds preserved", () => {
+  it("maps to-do items onto Annotation spans, sorted chronologically", () => {
     const out = assembleDirectives(TRANSCRIPT, {
       items: [
-        { kind: "media", phrase: "add a photo of the lighthouse", sourceIds: ["p2"] },
-        { kind: "todo", phrase: "Ask Mara", sourceIds: ["p1"] },
+        { phrase: "Frame the lighthouse shot", sourceIds: ["p2"] },
+        { phrase: "Ask Mara", sourceIds: ["p1"] },
       ],
     });
     expect(out).toHaveLength(2);
-    // Sorted chronologically regardless of the model's ordering.
+    // Sorted chronologically regardless of the model's ordering; every directive is a to-do.
     expect(out[0]).toMatchObject({ kind: "todo", label: "Ask Mara", tStart: 7, tEnd: 9 });
-    expect(out[1]).toMatchObject({ kind: "media", tStart: 12, tEnd: 15 });
+    expect(out[1]).toMatchObject({ kind: "todo", tStart: 12, tEnd: 15 });
     expect(out.map((a) => a.id)).toEqual(["dir-0", "dir-1"]);
   });
 
   it("drops items whose citations don't resolve", () => {
     const out = assembleDirectives(TRANSCRIPT, {
-      items: [{ kind: "todo", phrase: "Phantom", sourceIds: ["p99"] }],
+      items: [{ phrase: "Phantom", sourceIds: ["p99"] }],
     });
     expect(out).toEqual([]);
   });
 
-  it("leaves user-mutation fields (done/media/dismissed) unset at assembly", () => {
+  it("leaves the user-mutation field (done) unset at assembly", () => {
     const [todo] = assembleDirectives(TRANSCRIPT, {
-      items: [{ kind: "todo", phrase: "Ask Mara", sourceIds: ["p1"] }],
+      items: [{ phrase: "Ask Mara", sourceIds: ["p1"] }],
     });
     expect(todo.done).toBeUndefined();
-    expect(todo.media).toBeUndefined();
-    expect(todo.dismissed).toBeUndefined();
   });
 });
 

@@ -1,7 +1,6 @@
-// A derived branch off the transcript: spoken directives (to-dos + media requests) as
-// Annotation spans. Same one-resolver story as key moments — the model cites paragraph
-// ids, `assembleAnnotations` resolves timestamps and drops anything uncited. `done`,
-// `media`, and `dismissed` are user mutations layered on later, never LLM output.
+// A derived branch off the transcript: spoken to-dos as Annotation spans. Same one-resolver
+// story as key moments — the model cites paragraph ids, `assembleAnnotations` resolves
+// timestamps and drops anything uncited. `done` is a user mutation layered on later.
 import type { Annotation, Transcript } from "../../core/types.js";
 import { assembleAnnotations } from "../../core/annotations.js";
 import type { Ctx, Processor } from "../types.js";
@@ -13,7 +12,7 @@ export function assembleDirectives(
 ): Annotation[] {
   return assembleAnnotations(
     transcript,
-    result.items.map((d) => ({ kind: d.kind, label: d.phrase, sourceIds: d.sourceIds })),
+    result.items.map((d) => ({ kind: "todo" as const, label: d.phrase, sourceIds: d.sourceIds })),
     "dir",
   );
 }
