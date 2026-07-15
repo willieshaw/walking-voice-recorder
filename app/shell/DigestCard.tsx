@@ -97,7 +97,6 @@ export function DigestCard({
                       key={v.id}
                       className={`dg-vpill${i === vi ? " dg-vpill-active" : ""}`}
                       disabled={busy}
-                      title={v.label}
                       onClick={() => pick(i)}
                     >
                       {i + 1}

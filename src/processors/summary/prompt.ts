@@ -21,10 +21,9 @@ export const summarySchema: Record<string, unknown> = {
 };
 
 export interface SummaryVariant {
-  /** Stable id used as the storage key for this variant's generated text. */
+  /** Stable id used as the storage key for this variant's generated text. The UI shows
+   *  variants only as numbers (1–5); the id/comment names are internal. */
   id: string;
-  /** Short human label shown in the toggle. */
-  label: string;
   system: string;
   buildPrompt: (paragraphs: Chunk[]) => string;
 }
@@ -36,8 +35,8 @@ function numbered(paragraphs: Chunk[]): string {
 
 export const summaryVariants: SummaryVariant[] = [
   {
+    // Baseline — the original prompt, kept as the comparison point.
     id: "baseline",
-    label: "Baseline",
     system: `You distill a person's spoken brainstorming recording into a short written digest. You capture what THEY were working through, in a register close to their own — never a generic book-report tone, never content they didn't say.`,
     buildPrompt: (paragraphs) => `Here is a transcript of a spoken brainstorming walk, split into paragraphs.
 
@@ -52,8 +51,8 @@ Write a 2–3 sentence summary of the recording. Return a JSON object { "summary
 Return ONLY the JSON object.`,
   },
   {
+    // Their words — reuse the speaker's exact phrases, no synonyms.
     id: "their-words",
-    label: "Their words",
     system: `You summarize a spoken recording using the speaker's OWN words. You lift their exact phrases and never swap in fancier synonyms.`,
     buildPrompt: (paragraphs) => `Here is a transcript of a spoken brainstorming walk, split into paragraphs.
 
@@ -68,8 +67,8 @@ Write a 2–3 sentence summary that reuses the speaker's own words and phrases w
 Return ONLY the JSON object.`,
   },
   {
+    // First person — written as the speaker's own note to self.
     id: "first-person",
-    label: "First person",
     system: `You rewrite a person's spoken brainstorming into a short note they could have written to themselves — first person, in their own voice.`,
     buildPrompt: (paragraphs) => `Here is a transcript of a spoken brainstorming walk, split into paragraphs.
 
@@ -83,8 +82,8 @@ Write a 2–3 sentence summary in the FIRST PERSON, as if the speaker jotted it 
 Return ONLY the JSON object.`,
   },
   {
+    // Echo — mirror the speaker's register, rhythm, and idiom.
     id: "echo",
-    label: "Echo",
     system: `You mirror how a person talks. You capture what they worked through in their own register, rhythm, and idiom — not smoothed into neutral prose.`,
     buildPrompt: (paragraphs) => `Here is a transcript of a spoken brainstorming walk, split into paragraphs.
 
@@ -98,8 +97,8 @@ Write a 2–3 sentence summary that SOUNDS LIKE the speaker — match their regi
 Return ONLY the JSON object.`,
   },
   {
+    // Lean — the tersest version, the speaker's key phrases only.
     id: "lean",
-    label: "Lean",
     system: `You compress a person's spoken brainstorming to its essence using their own key phrases and as few words as possible.`,
     buildPrompt: (paragraphs) => `Here is a transcript of a spoken brainstorming walk, split into paragraphs.
 
