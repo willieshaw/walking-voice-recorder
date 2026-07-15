@@ -13,11 +13,26 @@
   border-radius: 14px;
   padding: 14px 18px 8px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.07);
+  transition: padding 0.2s ease, box-shadow 0.2s ease;
+}
+.sp-card.sp-collapsed {
+  align-items: center;
+  padding: 8px 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.09);
+}
+.sp-collapsed .sp-play {
+  width: 34px;
+  height: 34px;
+  margin-top: 0;
+}
+.sp-collapsed .sp-clock {
+  margin-top: 0;
 }
 .sp-play {
   width: 44px;
   height: 44px;
   flex: none;
+  transition: width 0.2s ease, height 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -47,10 +62,7 @@
 .sp-flag {
   position: absolute;
   top: -4px;
-  bottom: 0;
-  width: 1.5px;
-  margin-left: -0.75px;
-  background: var(--accent);
+  width: 0;
   pointer-events: none;
 }
 .sp-flag::before {
@@ -95,7 +107,8 @@
 .sp-fill {
   position: absolute;
   inset: 0 auto 0 0;
-  background: var(--accent);
+  /* Same dark as the waveform's played bars — the playhead reads as one idea, not two. */
+  background: var(--text-2);
 }
 .sp-label {
   font-family: ui-monospace, Menlo, monospace;

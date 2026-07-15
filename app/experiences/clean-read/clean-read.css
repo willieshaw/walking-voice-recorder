@@ -8,7 +8,7 @@
 .cr-para {
   position: relative;
   margin: 0 0 1.1em;
-  padding: 0.15em 0.4em 0.15em 0.6em;
+  padding: 0.15em 0.4em 0.15em 4.4em;
   border-left: 3px solid transparent;
   border-radius: 4px;
   cursor: pointer;
@@ -21,14 +21,18 @@
   border-left-color: var(--accent);
   background: var(--surface-active);
 }
-.cr-time {
-  display: inline-block;
-  min-width: 3.2em;
-  margin-right: 0.6em;
+/* Timestamp gutter. Rendered as generated content so it's never part of a text
+ *  selection or copy — the number lives in the CSS layer, not the DOM text. */
+.cr-para::before {
+  content: attr(data-ts);
+  position: absolute;
+  left: 0.7em;
+  top: 0.3em;
+  width: 3.2em;
+  font-family: ui-monospace, Menlo, monospace;
   font-variant-numeric: tabular-nums;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   color: var(--muted);
-  user-select: none;
 }
 .cr-empty {
   color: var(--muted);

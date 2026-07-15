@@ -26,7 +26,7 @@ function TodoCard({ a, onPatchAnnotation }: { a: Annotation } & DirectiveProps) 
         {a.done ? "✓" : ""}
       </span>
       <span className="dir-todo-body">
-        <span className="dir-tag dir-tag-todo">To-do · extracted</span>
+        <span className="dir-tag dir-tag-todo">To-do</span>
         <span className={`dir-todo-text${a.done ? " dir-todo-text-done" : ""}`}>{a.label}</span>
       </span>
     </label>
@@ -110,10 +110,10 @@ function RawView({ note, onPatchAnnotation }: { note: Note } & DirectiveProps) {
         <div key={p.id}>
           <p
             className={`cr-para${p.id === activeId ? " cr-active" : ""}`}
+            data-ts={formatTime(p.tStart)}
             onClick={() => seek(p.tStart, { activeChunkId: p.id })}
             title={`Jump to ${formatTime(p.tStart)}`}
           >
-            <span className="cr-time">{formatTime(p.tStart)}</span>
             {p.text}
           </p>
           {directives
@@ -145,14 +145,15 @@ function LayerView({ note, level }: { note: Note; level: 1 | 2 }) {
     const cls = `cc2-chunk${c.id === activeId ? " cc2-active" : ""}`;
     const onClick = () => seek(c.tStart, { activeChunkId: c.id });
     const title = `Jump to ${formatTime(c.tStart)}`;
+    const ts = formatTime(c.tStart);
     if (c.kind === "heading")
       return (
-        <h2 key={c.id} className={cls} onClick={onClick} title={title}>
+        <h2 key={c.id} className={cls} data-ts={ts} onClick={onClick} title={title}>
           {c.text}
         </h2>
       );
     return (
-      <p key={c.id} className={cls} onClick={onClick} title={title}>
+      <p key={c.id} className={cls} data-ts={ts} onClick={onClick} title={title}>
         {c.kind === "bullet" ? "• " : ""}
         {c.text}
       </p>
@@ -169,7 +170,29 @@ export function ReadingPane({
   note: Note;
 } & DirectiveProps) {
   const [mode, setMode] = useState<Mode>("raw");
+  const [copied, setCopied] = useState(false);
   const hasLayers = Boolean(note.layers?.levels?.length);
+
+  /** The plain text of whichever mode is showing — no timestamps (those are a gutter,
+   *  not content), bullets marked with "• " to keep the outline readable. */
+  function currentText(): string {
+    if (mode === "raw") {
+      return (note.transcript?.paragraphs ?? []).map((p) => p.text).join("\n\n");
+    }
+    const level = mode === "clean" ? 1 : 2;
+    const chunks = note.layers?.levels.find((l) => l.level === level)?.chunks ?? [];
+    return chunks.map((c) => (c.kind === "bullet" ? `• ${c.text}` : c.text)).join("\n\n");
+  }
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(currentText());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    } catch {
+      /* clipboard blocked — no-op */
+    }
+  }
 
   const pill = (m: Mode, label: string) => (
     <button
@@ -183,10 +206,15 @@ export function ReadingPane({
 
   return (
     <div className="rp">
-      <div className="rp-switch">
-        {pill("raw", "Raw")}
-        {hasLayers && pill("clean", "Clean")}
-        {hasLayers && pill("formatted", "Formatted")}
+      <div className="rp-top">
+        <div className="rp-switch">
+          {pill("raw", "Raw")}
+          {hasLayers && pill("clean", "Clean")}
+          {hasLayers && pill("formatted", "Formatted")}
+        </div>
+        <button className="rp-copy" onClick={handleCopy}>
+          {copied ? "Copied" : "Copy"}
+        </button>
       </div>
       <div className="rp-pane" key={mode}>
         {mode === "raw" && <RawView note={note} onPatchAnnotation={onPatchAnnotation} />}

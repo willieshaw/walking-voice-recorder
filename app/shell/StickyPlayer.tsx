@@ -45,6 +45,8 @@ export function StickyPlayer({ note }: { note: Note }) {
   const seek = useFocus((s) => s.seek);
   const togglePlay = useFocus((s) => s.togglePlay);
   const [peaks, setPeaks] = useState<Float32Array | null>(null);
+  const [scrolled, setScrolled] = useState(false);
+  const [hover, setHover] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -52,6 +54,19 @@ export function StickyPlayer({ note }: { note: Note }) {
   const moments = deriveAnnotations(note).filter((a) => a.kind === "moment");
   const chapters = toChapters(moments, duration);
   const current = chapters.find((c) => currentTime >= c.tStart && currentTime < c.tEnd);
+  // Full height at the top of the note; collapses to a slim bar once scrolled, and
+  // re-expands on hover so the chapters stay one gesture away.
+  const expanded = !scrolled || hover;
+
+  // Collapse when the memo scroll container leaves the top.
+  useEffect(() => {
+    const scroller = wrapRef.current?.closest(".main") as HTMLElement | null;
+    if (!scroller) return;
+    const onScroll = () => setScrolled(scroller.scrollTop > 8);
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => scroller.removeEventListener("scroll", onScroll);
+  }, [note.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,7 +122,11 @@ export function StickyPlayer({ note }: { note: Note }) {
   return (
     <div className="sp-sticky">
       <AudioPlayer src={note.audioUrl} hidden />
-      <div className="sp-card">
+      <div
+        className={`sp-card${expanded ? "" : " sp-collapsed"}`}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+      >
         <button className="sp-play" onClick={togglePlay} aria-label={isPlaying ? "Pause" : "Play"}>
           {isPlaying ? (
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
@@ -146,6 +165,7 @@ export function StickyPlayer({ note }: { note: Note }) {
                 ))}
           </div>
 
+          {expanded && (
           <div className="sp-segrow">
             {chapters.map((c, i) => {
               const frac = Math.min(
@@ -176,6 +196,7 @@ export function StickyPlayer({ note }: { note: Note }) {
               );
             })}
           </div>
+          )}
         </div>
 
         <span className="sp-clock">
