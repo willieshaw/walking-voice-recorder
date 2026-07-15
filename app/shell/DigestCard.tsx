@@ -1,6 +1,6 @@
 // The collapsible Overview card — a composed VIEW over primitives we already store, not a
-// structure of its own: Summary (the `summary` scalar), Key points (the layers Outline
-// bullets), To do (`todo` annotations, done persisted). Linked notes wait on embeddings.
+// structure of its own: Summary (the `summary` scalar) + To do (`todo` annotations, done
+// persisted).
 import { useState } from "react";
 import type { Annotation, Note } from "@core/types";
 import { deriveAnnotations } from "@core/annotations";
@@ -17,12 +17,8 @@ export function DigestCard({
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const todos = deriveAnnotations(note).filter((a) => a.kind === "todo" && !a.dismissed);
-  const keyPoints =
-    note.layers?.levels
-      .find((l) => l.level === 3)
-      ?.chunks.filter((c) => c.kind === "bullet") ?? [];
 
-  if (!note.summary && !todos.length && !keyPoints.length) return null;
+  if (!note.summary && !todos.length) return null;
 
   const remaining = todos.filter((t) => !t.done).length;
   const teaser =
@@ -54,19 +50,6 @@ export function DigestCard({
             <section className="dg-section">
               <div className="dg-label">Summary</div>
               <p className="dg-summary">{note.summary}</p>
-            </section>
-          )}
-          {keyPoints.length > 0 && (
-            <section className="dg-section">
-              <div className="dg-label">Key points</div>
-              <div className="dg-points">
-                {keyPoints.map((k) => (
-                  <div key={k.id} className="dg-point">
-                    <span className="dg-dot" />
-                    <span>{k.text}</span>
-                  </div>
-                ))}
-              </div>
             </section>
           )}
           {todos.length > 0 && (

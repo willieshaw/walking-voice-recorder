@@ -12,6 +12,7 @@ import "./sticky-player.css";
 
 const WAVE_HEIGHT = 32;
 const BUCKETS = 110;
+const STICKY_TOP = 12; // must match `.sp-sticky { top }` in sticky-player.css
 
 interface Chapter {
   label: string | null;
@@ -47,6 +48,7 @@ export function StickyPlayer({ note }: { note: Note }) {
   const [peaks, setPeaks] = useState<Float32Array | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const [hover, setHover] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -58,11 +60,16 @@ export function StickyPlayer({ note }: { note: Note }) {
   // re-expands on hover so the chapters stay one gesture away.
   const expanded = !scrolled || hover;
 
-  // Collapse when the memo scroll container leaves the top.
+  // "Stuck" = the card has actually reached the top of the scroll area (its sticky offset),
+  // not merely that the page scrolled at all. Only then does it collapse.
   useEffect(() => {
-    const scroller = wrapRef.current?.closest(".main") as HTMLElement | null;
-    if (!scroller) return;
-    const onScroll = () => setScrolled(scroller.scrollTop > 8);
+    const root = rootRef.current;
+    const scroller = root?.closest(".main") as HTMLElement | null;
+    if (!root || !scroller) return;
+    const onScroll = () => {
+      const refTop = scroller.getBoundingClientRect().top + STICKY_TOP;
+      setScrolled(root.getBoundingClientRect().top <= refTop + 1);
+    };
     scroller.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => scroller.removeEventListener("scroll", onScroll);
@@ -120,10 +127,10 @@ export function StickyPlayer({ note }: { note: Note }) {
   }, [peaks, currentTime, duration]);
 
   return (
-    <div className="sp-sticky">
+    <div className="sp-sticky" ref={rootRef}>
       <AudioPlayer src={note.audioUrl} hidden />
       <div
-        className={`sp-card${scrolled ? " sp-stuck" : ""}`}
+        className={`sp-card${scrolled ? " sp-stuck" : ""}${expanded ? "" : " sp-min"}`}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
       >
@@ -165,7 +172,6 @@ export function StickyPlayer({ note }: { note: Note }) {
                 ))}
           </div>
 
-          {expanded && (
           <div className="sp-segrow">
             {chapters.map((c, i) => {
               const frac = Math.min(
@@ -196,7 +202,6 @@ export function StickyPlayer({ note }: { note: Note }) {
               );
             })}
           </div>
-          )}
         </div>
 
         <span className="sp-clock">

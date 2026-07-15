@@ -111,26 +111,6 @@
   line-height: 1.55;
   color: #3f3f46;
 }
-.dg-points {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-.dg-point {
-  display: flex;
-  gap: 9px;
-  font-size: 12.5px;
-  line-height: 1.4;
-  color: #3f3f46;
-}
-.dg-dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--text);
-  margin-top: 6px;
-  flex: none;
-}
 .dg-todos {
   display: flex;
   flex-direction: column;

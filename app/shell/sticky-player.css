@@ -70,6 +70,17 @@
   display: flex;
   gap: 4px;
   margin-top: 8px;
+  /* Collapses shut when the card sticks to the top; a quick transition on both directions
+   *  (open on hover, close when stuck) rather than an instant show/hide. */
+  max-height: 60px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 0.2s ease, opacity 0.2s ease, margin-top 0.2s ease;
+}
+.sp-min .sp-segrow {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
 }
 .sp-seg {
   flex-basis: 0;
@@ -122,7 +133,7 @@
 .sp-clock {
   flex: none;
   margin-top: 9px;
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: "Helvetica Neue", Helvetica, sans-serif;
   font-size: 11px;
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
