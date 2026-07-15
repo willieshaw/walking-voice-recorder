@@ -22,7 +22,8 @@ function MiniWave({ seed }: { seed: string }) {
   let x = 0;
   for (const ch of seed) x = (x * 31 + ch.charCodeAt(0)) & 0x7fffffff;
   const bars: number[] = [];
-  for (let i = 0; i < 36; i++) {
+  // 22 bars fit the 70px waveform at ~1.5px each without overflowing into the time.
+  for (let i = 0; i < 22; i++) {
     x = (x * 1103515245 + 12345) & 0x7fffffff;
     bars.push(0.22 + (x / 0x7fffffff) * 0.78);
   }

@@ -82,9 +82,11 @@
 .lf-wave {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 1.5px;
   height: 12px;
   width: 70px;
+  overflow: hidden;
 }
 .lf-wave span {
   flex: 1;
