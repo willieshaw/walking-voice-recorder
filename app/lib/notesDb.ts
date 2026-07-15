@@ -162,6 +162,22 @@ export async function updateNote(
   });
 }
 
+/** Add one lazily-generated summary variant to the note's cache inside a single
+ *  read-modify-write, so filling several variants in quick succession can't clobber the
+ *  map with a stale copy. Returns the new cache for the caller to mirror into UI state. */
+export async function addSummaryVariant(
+  noteId: string,
+  variantId: string,
+  text: string,
+): Promise<Record<string, string>> {
+  let next: Record<string, string> = {};
+  await mutateNote(noteId, (stored) => {
+    next = { ...(stored.data.summaries ?? {}), [variantId]: text };
+    stored.data = { ...stored.data, summaries: next };
+  });
+  return next;
+}
+
 /** Patch one annotation by id inside a single read-modify-write, so concurrent toggles
  *  each mutate the freshly-stored array instead of clobbering it with a stale copy from
  *  React state. Returns the new annotations list for the caller to mirror into UI state. */

@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { Transcript } from "../src/core/types.js";
 import { assembleDirectives } from "../src/processors/directives/index.js";
 import { assembleSummary } from "../src/processors/summary/index.js";
+import {
+  DEFAULT_VARIANT,
+  summaryRequest,
+  summaryVariants,
+} from "../src/processors/summary/prompt.js";
 
 const TRANSCRIPT: Transcript = {
   text: "Hello there, this is a test.\n\nNote to self, ask Mara.\n\nAdd a photo of the lighthouse here.",
@@ -53,5 +58,26 @@ describe("assembleSummary", () => {
 
   it("collapses a missing summary to the empty string", () => {
     expect(assembleSummary(TRANSCRIPT, { summary: undefined as unknown as string })).toBe("");
+  });
+});
+
+describe("summary variants", () => {
+  it("exposes five variants with unique ids and distinct prompts", () => {
+    expect(summaryVariants).toHaveLength(5);
+    const ids = summaryVariants.map((v) => v.id);
+    expect(new Set(ids).size).toBe(5);
+    const prompts = summaryVariants.map((v) => v.buildPrompt(TRANSCRIPT.paragraphs));
+    expect(new Set(prompts).size).toBe(5);
+  });
+
+  it("DEFAULT_VARIANT is the first variant", () => {
+    expect(DEFAULT_VARIANT).toBe(summaryVariants[0].id);
+  });
+
+  it("summaryRequest resolves by id and falls back to the default for unknown ids", () => {
+    const v = summaryVariants[2];
+    expect(summaryRequest(v.id).system).toBe(v.system);
+    expect(summaryRequest("nope").system).toBe(summaryVariants[0].system);
+    expect(summaryRequest().system).toBe(summaryVariants[0].system);
   });
 });

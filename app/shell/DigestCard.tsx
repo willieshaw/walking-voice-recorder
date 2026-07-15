@@ -1,9 +1,10 @@
 // The collapsible Overview card — a composed VIEW over primitives we already store, not a
-// structure of its own: Summary (the `summary` scalar) + To do (`todo` annotations, done
-// persisted).
-import { useState } from "react";
+// structure of its own: Summary (the `summary` scalar, with a toggle across lazily-built
+// prompt variants) + To do (`todo` annotations, done persisted).
+import { useEffect, useState } from "react";
 import type { Annotation, Note } from "@core/types";
 import { deriveAnnotations } from "@core/annotations";
+import { DEFAULT_VARIANT, summaryVariants } from "@engine/processors/summary/prompt";
 import { copyTodos } from "../lib/clipboard";
 import { useCopyFlash } from "../lib/useCopyFlash";
 import "./digest-card.css";
@@ -11,13 +12,26 @@ import "./digest-card.css";
 export function DigestCard({
   note,
   onToggleTodo,
+  onEnsureSummaryVariant,
 }: {
   note: Note;
   onToggleTodo: (annotation: Annotation) => void;
+  onEnsureSummaryVariant: (variantId: string) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [copied, flashCopied] = useCopyFlash();
+  // Which summary variant is showing, and whether we're generating one / hit an error.
+  const [vi, setVi] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(false);
   const todos = deriveAnnotations(note).filter((a) => a.kind === "todo");
+
+  // Reset the toggle when switching notes.
+  useEffect(() => {
+    setVi(0);
+    setBusy(false);
+    setErr(false);
+  }, [note.id]);
 
   if (!note.summary && !todos.length) return null;
 
@@ -26,6 +40,33 @@ export function DigestCard({
     note.summary && note.summary.length > 96
       ? `${note.summary.slice(0, 96).trimEnd()}…`
       : note.summary;
+
+  const variant = summaryVariants[vi];
+  const variantText =
+    variant.id === DEFAULT_VARIANT ? note.summary : note.summaries?.[variant.id];
+  // We can offer the toggle only when there's a transcript to build alternates from.
+  const canVary = Boolean(note.transcript);
+
+  async function generate(id: string) {
+    const cached = id === DEFAULT_VARIANT ? !!note.summary : !!note.summaries?.[id];
+    setErr(false);
+    if (cached) return;
+    setBusy(true);
+    try {
+      await onEnsureSummaryVariant(id);
+    } catch {
+      setErr(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function step(delta: number) {
+    if (busy) return;
+    const ni = (vi + delta + summaryVariants.length) % summaryVariants.length;
+    setVi(ni);
+    void generate(summaryVariants[ni].id);
+  }
 
   return (
     <div className="dg-card">
@@ -49,8 +90,49 @@ export function DigestCard({
         <div className="dg-body">
           {note.summary && (
             <section className="dg-section">
-              <div className="dg-label">Summary</div>
-              <p className="dg-summary">{note.summary}</p>
+              <div className="dg-section-head">
+                <div className="dg-label">Summary</div>
+                {canVary && (
+                  <div className="dg-variant" title="Try a different summary style">
+                    <button
+                      className="dg-vstep"
+                      onClick={() => step(-1)}
+                      disabled={busy}
+                      aria-label="Previous summary style"
+                    >
+                      ‹
+                    </button>
+                    <span className="dg-vlabel">
+                      {variant.label}
+                      <span className="dg-vcount">
+                        {vi + 1}/{summaryVariants.length}
+                      </span>
+                    </span>
+                    <button
+                      className="dg-vstep"
+                      onClick={() => step(1)}
+                      disabled={busy}
+                      aria-label="Next summary style"
+                    >
+                      ›
+                    </button>
+                  </div>
+                )}
+              </div>
+              {busy ? (
+                <p className="dg-summary dg-summary-muted">
+                  <span className="dg-vspin" /> Writing the “{variant.label}” version…
+                </p>
+              ) : err ? (
+                <p className="dg-summary dg-summary-muted">
+                  Couldn’t write this version.{" "}
+                  <button className="dg-vretry" onClick={() => void generate(variant.id)}>
+                    Retry
+                  </button>
+                </p>
+              ) : (
+                <p className="dg-summary">{variantText}</p>
+              )}
             </section>
           )}
           {todos.length > 0 && (

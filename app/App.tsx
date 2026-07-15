@@ -16,6 +16,7 @@ import { allFolders, rememberFolder, renameFolder } from "./lib/folders";
 import { hasKeys } from "./lib/keys";
 import { buildDirectives, buildKeyMoments, buildSummary } from "./lib/providers/openaiLlm";
 import {
+  addSummaryVariant,
   getNote,
   listNotes,
   renameNote,
@@ -24,6 +25,7 @@ import {
   updateNote,
   type NoteSummary,
 } from "./lib/notesDb";
+import { DEFAULT_VARIANT } from "@engine/processors/summary/prompt";
 import { processInBrowser } from "./lib/processInBrowser";
 import "./app.css";
 
@@ -109,6 +111,19 @@ export default function App() {
     setNote((prev) => (prev && prev.folder === oldName ? { ...prev, folder: trimmed } : prev));
     if (filterFolder === oldName) setFilterFolder(trimmed);
     setFolderBump((n) => n + 1);
+  }
+
+  /** Lazily generate one alternate summary variant and cache it on the note. The default
+   *  variant already lives in `note.summary`; others are filled the first time a user
+   *  toggles to them. Throws on failure so the card can show a retry. */
+  async function ensureSummaryVariant(variantId: string) {
+    const target = note;
+    if (!target?.transcript) return;
+    if (variantId === DEFAULT_VARIANT) return; // the default is note.summary
+    if (target.summaries?.[variantId]) return; // already cached
+    const text = await buildSummary(target.transcript, variantId);
+    const summaries = await addSummaryVariant(target.id, variantId, text);
+    setNote((prev) => (prev && prev.id === target.id ? { ...prev, summaries } : prev));
   }
 
   function openMemo(id: string) {
@@ -392,6 +407,7 @@ export default function App() {
                 <DigestCard
                   note={note}
                   onToggleTodo={(a) => void patchAnnotation(a, { done: !a.done })}
+                  onEnsureSummaryVariant={ensureSummaryVariant}
                 />
 
                 {needsUpgrade && (

@@ -2,21 +2,16 @@
 // composes from primitives we already store — this scalar is its only new stored data.
 import type { Transcript } from "../../core/types.js";
 import type { Ctx, Processor } from "../types.js";
-import { buildPrompt, summarySchema, SYSTEM, type SummaryResult } from "./prompt.js";
+import { summaryRequest, type SummaryResult } from "./prompt.js";
 
 /** Trim the model's digest; an empty summary is worth nothing, so collapse it to "". */
 export function assembleSummary(_transcript: Transcript, result: SummaryResult): string {
   return (result.summary ?? "").trim();
 }
 
-/** The LLM prompt + schema, exposed so any caller (Node or browser) can run the model
- *  itself and hand the result to `assembleSummary`. */
-export const summaryLlmRequest = {
-  system: SYSTEM,
-  schema: summarySchema,
-  schemaName: "summary",
-  buildPrompt,
-};
+/** The default variant's prompt + schema, exposed so any caller (Node or browser) can run
+ *  the model itself and hand the result to `assembleSummary`. */
+export const summaryLlmRequest = summaryRequest();
 
 export const summaryProcessor: Processor<"summary"> = {
   id: "summary",
@@ -26,10 +21,10 @@ export const summaryProcessor: Processor<"summary"> = {
     const transcript = await ctx.getArtifact("transcript");
     if (!transcript) throw new Error("summary requires a transcript artifact.");
     const result = await ctx.getLlm().generateJson<SummaryResult>({
-      system: SYSTEM,
-      prompt: buildPrompt(transcript.paragraphs),
-      schema: summarySchema,
-      schemaName: "summary",
+      system: summaryLlmRequest.system,
+      prompt: summaryLlmRequest.buildPrompt(transcript.paragraphs),
+      schema: summaryLlmRequest.schema,
+      schemaName: summaryLlmRequest.schemaName,
     });
     return assembleSummary(transcript, result);
   },

@@ -104,12 +104,89 @@
   color: var(--text);
   border-color: var(--hairline);
 }
+/* Summary variant toggle (‹ Label n/5 ›) */
+.dg-variant {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 11px;
+}
+.dg-vstep {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--text-2);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.dg-vstep:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--hairline);
+}
+.dg-vstep:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.dg-vlabel {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 84px;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.dg-vcount {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
 .dg-summary {
   margin: 0;
   font-family: "Newsreader", serif;
   font-size: 15px;
   line-height: 1.55;
   color: #3f3f46;
+}
+.dg-summary-muted {
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dg-vspin {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border: 2px solid var(--hairline);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: dg-spin 0.7s linear infinite;
+}
+@keyframes dg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.dg-vretry {
+  font: inherit;
+  font-size: 12px;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
 }
 .dg-todos {
   display: flex;

@@ -146,8 +146,12 @@ export interface Note {
   keymoments?: KeyMoment[];
   /** The composable span primitive (moments + to-dos). Read via `deriveAnnotations`. */
   annotations?: Annotation[];
-  /** A 2–3 sentence digest of the recording — the one scalar the Overview card adds. */
+  /** A 2–3 sentence digest of the recording — the default summary variant (shown in the
+   *  collapsed teaser and generated on upload). */
   summary?: string;
+  /** Lazily-generated alternate summary variants, keyed by variant id. The default variant
+   *  lives in `summary`; toggling to another variant in the UI fills a key here on demand. */
+  summaries?: Record<string, string>;
   concepts?: Concept[];
   embeddings?: Embeddings;
 }

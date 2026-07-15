@@ -6,8 +6,8 @@ import { assembleLayers, layersLlmRequest } from "@engine/processors/layers/inde
 import type { LayersResult } from "@engine/processors/layers/prompt";
 import { assembleKeyMoments, keyMomentsLlmRequest } from "@engine/processors/keymoments/index";
 import type { KeyMomentsResult } from "@engine/processors/keymoments/prompt";
-import { assembleSummary, summaryLlmRequest } from "@engine/processors/summary/index";
-import type { SummaryResult } from "@engine/processors/summary/prompt";
+import { assembleSummary } from "@engine/processors/summary/index";
+import { summaryRequest, type SummaryResult } from "@engine/processors/summary/prompt";
 import { assembleDirectives, directivesLlmRequest } from "@engine/processors/directives/index";
 import type { DirectivesResult } from "@engine/processors/directives/prompt";
 import { getKeys } from "../keys";
@@ -61,8 +61,11 @@ export async function buildKeyMoments(transcript: Transcript): Promise<KeyMoment
   return assembleKeyMoments(transcript, result);
 }
 
-export async function buildSummary(transcript: Transcript): Promise<string> {
-  const result = await callStructure<SummaryResult>(summaryLlmRequest, transcript.paragraphs);
+export async function buildSummary(transcript: Transcript, variantId?: string): Promise<string> {
+  const result = await callStructure<SummaryResult>(
+    summaryRequest(variantId),
+    transcript.paragraphs,
+  );
   return assembleSummary(transcript, result);
 }
 
