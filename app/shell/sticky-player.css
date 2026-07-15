@@ -116,7 +116,7 @@
   background: var(--text-2);
 }
 .sp-label {
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 10.5px;
   color: var(--muted);
   overflow: hidden;

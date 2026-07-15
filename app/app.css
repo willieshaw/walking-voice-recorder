@@ -360,7 +360,7 @@ h2.memo-title:hover {
 
 .error {
   color: #b3261e;
-  font-family: ui-monospace, monospace;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 0.85rem;
 }
 

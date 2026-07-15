@@ -83,8 +83,8 @@
   display: flex;
   align-items: center;
   gap: 1.5px;
-  height: 20px;
-  width: 116px;
+  height: 12px;
+  width: 70px;
 }
 .lf-wave span {
   flex: 1;
@@ -93,7 +93,8 @@
   background: var(--hairline);
 }
 .lf-dur {
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
   color: var(--muted);
 }

@@ -16,7 +16,7 @@
   border: 1px solid rgba(0, 0, 0, 0.14);
   border-radius: 5px;
   padding: 1px 6px;
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 /* The ⌘ glyph renders smaller than a letter; bump it up to K's visual size and
  *  give it a little breathing room from the K. */

@@ -29,7 +29,7 @@ function MiniWave({ seed }: { seed: string }) {
   return (
     <div className="lf-wave" aria-hidden>
       {bars.map((v, i) => (
-        <span key={i} style={{ height: `${Math.round(v * 20)}px` }} />
+        <span key={i} style={{ height: `${Math.round(v * 12)}px` }} />
       ))}
     </div>
   );
