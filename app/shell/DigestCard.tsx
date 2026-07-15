@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { Annotation, Note } from "@core/types";
 import { deriveAnnotations } from "@core/annotations";
 import { copyTodos } from "../lib/clipboard";
+import { useCopyFlash } from "../lib/useCopyFlash";
 import "./digest-card.css";
 
 export function DigestCard({
@@ -15,7 +16,7 @@ export function DigestCard({
   onToggleTodo: (annotation: Annotation) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, flashCopied] = useCopyFlash();
   const todos = deriveAnnotations(note).filter((a) => a.kind === "todo");
 
   if (!note.summary && !todos.length) return null;
@@ -56,15 +57,7 @@ export function DigestCard({
             <section className="dg-section">
               <div className="dg-section-head">
                 <div className="dg-label">To do</div>
-                <button
-                  className="dg-copy"
-                  onClick={async () => {
-                    if (await copyTodos(todos)) {
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 1400);
-                    }
-                  }}
-                >
+                <button className="dg-copy" onClick={() => flashCopied(() => copyTodos(todos))}>
                   {copied ? "Copied" : "Copy"}
                 </button>
               </div>

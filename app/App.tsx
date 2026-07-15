@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Annotation, Note } from "@core/types";
 import { useFocus } from "@core/focus";
 import { formatTime } from "./components/AudioPlayer";
@@ -14,12 +14,7 @@ import { FoldersModal } from "./shell/FoldersModal";
 import { TagChips } from "./shell/TagChips";
 import { allFolders, rememberFolder, renameFolder } from "./lib/folders";
 import { hasKeys } from "./lib/keys";
-import {
-  buildConcepts,
-  buildDirectives,
-  buildKeyMoments,
-  buildSummary,
-} from "./lib/providers/openaiLlm";
+import { buildDirectives, buildKeyMoments, buildSummary } from "./lib/providers/openaiLlm";
 import {
   getNote,
   listNotes,
@@ -47,6 +42,10 @@ export default function App() {
   const [filterFolder, setFilterFolder] = useState<string | null>(null);
   const [folderBump, setFolderBump] = useState(0); // re-derive folders after "New folder"
   const resetFocus = useFocus((s) => s.reset);
+  // The object URL of the loaded note's audio. getNote mints a fresh one each call, so we
+  // revoke the previous when a new note loads (and on unmount) — otherwise every note we
+  // open leaks its audio blob into memory until a full reload.
+  const audioUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     listNotes().then(setSummaries);
@@ -137,7 +136,7 @@ export default function App() {
   // from the stored transcript alone (no re-transcription, purely additive).
   const needsUpgrade =
     !!note?.transcript &&
-    (!note.keymoments || !note.concepts || note.summary === undefined || !note.annotations);
+    (!note.keymoments || note.summary === undefined || !note.annotations);
 
   async function handleUpgrade() {
     const target = note;
@@ -145,16 +144,15 @@ export default function App() {
     setUpgrading(true);
     setUpgradeError(null);
     try {
-      const [keymoments, concepts, noteSummary, annotations] = await Promise.all([
+      const [keymoments, noteSummary, annotations] = await Promise.all([
         target.keymoments ?? buildKeyMoments(target.transcript),
-        target.concepts ?? buildConcepts(target.transcript),
         target.summary ?? buildSummary(target.transcript),
         target.annotations ?? buildDirectives(target.transcript),
       ]);
-      await updateNote(target.id, { keymoments, concepts, summary: noteSummary, annotations });
+      await updateNote(target.id, { keymoments, summary: noteSummary, annotations });
       setNote((prev) =>
         prev && prev.id === target.id
-          ? { ...prev, keymoments, concepts, summary: noteSummary, annotations }
+          ? { ...prev, keymoments, summary: noteSummary, annotations }
           : prev,
       );
     } catch (e) {
@@ -171,9 +169,22 @@ export default function App() {
     setUpgradeError(null);
     resetFocus();
     getNote(selectedId)
-      .then((n) => n && setNote(n))
+      .then((n) => {
+        if (!n) return;
+        if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = n.audioUrl;
+        setNote(n);
+      })
       .catch((e) => setError(String(e)));
   }, [selectedId, resetFocus]);
+
+  // Free the last note's audio object URL when the app unmounts.
+  useEffect(
+    () => () => {
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    },
+    [],
+  );
 
   function exportNote() {
     if (!note) return;
@@ -186,7 +197,6 @@ export default function App() {
       layers: note.layers,
       keymoments: note.keymoments,
       annotations: note.annotations,
-      concepts: note.concepts,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const a = document.createElement("a");

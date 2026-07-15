@@ -1,20 +1,11 @@
 // Browser structuring calls. OpenAI blocks direct browser calls (confirmed by CORS
 // check), so these post to our stateless /api/structure pass-through — reusing the exact
 // same prompts, schemas, and assembly as the Node pipeline.
-import type {
-  Annotation,
-  Chunk,
-  Concept,
-  FormattingLayers,
-  KeyMoment,
-  Transcript,
-} from "@core/types";
+import type { Annotation, Chunk, FormattingLayers, KeyMoment, Transcript } from "@core/types";
 import { assembleLayers, layersLlmRequest } from "@engine/processors/layers/index";
 import type { LayersResult } from "@engine/processors/layers/prompt";
 import { assembleKeyMoments, keyMomentsLlmRequest } from "@engine/processors/keymoments/index";
 import type { KeyMomentsResult } from "@engine/processors/keymoments/prompt";
-import { assembleConcepts, conceptsLlmRequest } from "@engine/processors/concepts/index";
-import type { ConceptsResult } from "@engine/processors/concepts/prompt";
 import { assembleSummary, summaryLlmRequest } from "@engine/processors/summary/index";
 import type { SummaryResult } from "@engine/processors/summary/prompt";
 import { assembleDirectives, directivesLlmRequest } from "@engine/processors/directives/index";
@@ -68,14 +59,6 @@ export async function buildKeyMoments(transcript: Transcript): Promise<KeyMoment
     transcript.paragraphs,
   );
   return assembleKeyMoments(transcript, result);
-}
-
-export async function buildConcepts(transcript: Transcript): Promise<Concept[]> {
-  const result = await callStructure<ConceptsResult>(
-    conceptsLlmRequest,
-    transcript.paragraphs,
-  );
-  return assembleConcepts(transcript, result);
 }
 
 export async function buildSummary(transcript: Transcript): Promise<string> {

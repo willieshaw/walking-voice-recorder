@@ -19,11 +19,16 @@ export function SearchModal({
     inputRef.current?.focus();
   }, []);
 
+  // Debounced: each search reads every note, so run it once the typing settles rather
+  // than on every keystroke.
   useEffect(() => {
     let cancelled = false;
-    searchNotes(query).then((h) => !cancelled && setHits(h));
+    const t = setTimeout(() => {
+      searchNotes(query).then((h) => !cancelled && setHits(h));
+    }, 150);
     return () => {
       cancelled = true;
+      clearTimeout(t);
     };
   }, [query]);
 

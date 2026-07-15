@@ -62,11 +62,15 @@ export async function saveNote(note: Note, audio: Blob): Promise<void> {
   await tx("readwrite", (s) => s.put(stored));
 }
 
-export async function listNotes(): Promise<NoteSummary[]> {
+/** All stored notes, newest first. The shared read behind the feed and search. */
+async function allByRecency(): Promise<StoredNote[]> {
   const all = await tx<StoredNote[]>("readonly", (s) => s.getAll());
-  return all
-    .sort((a, b) => b.createdAt - a.createdAt)
-    .map(({ id, title, durationSec, createdAt, data }) => ({
+  return all.sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export async function listNotes(): Promise<NoteSummary[]> {
+  const all = await allByRecency();
+  return all.map(({ id, title, durationSec, createdAt, data }) => ({
       id,
       title,
       durationSec,
@@ -91,21 +95,19 @@ export interface SearchHit {
 export async function searchNotes(query: string): Promise<SearchHit[]> {
   const q = query.trim().toLowerCase();
   if (!q) return [];
-  const all = await tx<StoredNote[]>("readonly", (s) => s.getAll());
-  return all
-    .sort((a, b) => b.createdAt - a.createdAt)
-    .flatMap((n) => {
-      const text = (n.data.transcript?.text ?? "").replace(/\s+/g, " ");
-      const inTitle = n.title.toLowerCase().includes(q);
-      const inTags = (n.data.tags ?? []).some((t) => t.toLowerCase().includes(q));
-      const at = text.toLowerCase().indexOf(q);
-      if (!inTitle && !inTags && at < 0) return [];
-      const snippet =
-        at >= 0
-          ? (at > 40 ? "…" : "") + text.slice(Math.max(0, at - 40), at + 100).trim()
-          : text.slice(0, 120);
-      return [{ id: n.id, title: n.title, createdAt: n.createdAt, folder: n.data.folder, snippet }];
-    });
+  const all = await allByRecency();
+  return all.flatMap((n) => {
+    const text = (n.data.transcript?.text ?? "").replace(/\s+/g, " ");
+    const inTitle = n.title.toLowerCase().includes(q);
+    const inTags = (n.data.tags ?? []).some((t) => t.toLowerCase().includes(q));
+    const at = text.toLowerCase().indexOf(q);
+    if (!inTitle && !inTags && at < 0) return [];
+    const snippet =
+      at >= 0
+        ? (at > 40 ? "…" : "") + text.slice(Math.max(0, at - 40), at + 100).trim()
+        : text.slice(0, 120);
+    return [{ id: n.id, title: n.title, createdAt: n.createdAt, folder: n.data.folder, snippet }];
+  });
 }
 
 export async function getNote(id: string): Promise<Note | null> {
@@ -116,10 +118,6 @@ export async function getNote(id: string): Promise<Note | null> {
     createdAt: stored.createdAt,
     audioUrl: URL.createObjectURL(stored.audio),
   };
-}
-
-export async function deleteNote(id: string): Promise<void> {
-  await tx("readwrite", (s) => s.delete(id));
 }
 
 /** Atomic read-modify-write in ONE readwrite transaction. IndexedDB serializes

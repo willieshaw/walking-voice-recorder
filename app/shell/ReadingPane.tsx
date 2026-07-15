@@ -9,6 +9,7 @@ import { deriveAnnotations } from "@core/annotations";
 import { useFocus } from "@core/focus";
 import { formatTime } from "../components/AudioPlayer";
 import { copyTodos } from "../lib/clipboard";
+import { useCopyFlash } from "../lib/useCopyFlash";
 import "../experiences/clean-read/clean-read.css";
 import "./reading-pane.css";
 
@@ -21,7 +22,7 @@ interface DirectiveProps {
 }
 
 function TodoCard({ a, onPatchAnnotation }: { a: Annotation } & DirectiveProps) {
-  const [copied, setCopied] = useState(false);
+  const [copied, flashCopied] = useCopyFlash();
   return (
     <label className="dir-todo" onClick={() => onPatchAnnotation(a, { done: !a.done })}>
       <span className={`dir-todo-box${a.done ? " dir-todo-box-done" : ""}`}>
@@ -33,12 +34,9 @@ function TodoCard({ a, onPatchAnnotation }: { a: Annotation } & DirectiveProps) 
       </span>
       <button
         className="dir-todo-copy"
-        onClick={async (e) => {
+        onClick={(e) => {
           e.stopPropagation();
-          if (await copyTodos([{ label: a.label, done: a.done }])) {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1400);
-          }
+          flashCopied(() => copyTodos([{ label: a.label, done: a.done }]));
         }}
       >
         {copied ? "Copied" : "Copy"}
@@ -140,7 +138,7 @@ export function ReadingPane({
   note: Note;
 } & DirectiveProps) {
   const [mode, setMode] = useState<Mode>("raw");
-  const [copied, setCopied] = useState(false);
+  const [copied, flashCopied] = useCopyFlash();
   const hasLayers = Boolean(note.layers?.levels?.length);
 
   /** The plain text of whichever mode is showing — no timestamps (those are a gutter,
@@ -152,16 +150,6 @@ export function ReadingPane({
     const level = mode === "clean" ? 1 : 2;
     const chunks = note.layers?.levels.find((l) => l.level === level)?.chunks ?? [];
     return chunks.map((c) => (c.kind === "bullet" ? `• ${c.text}` : c.text)).join("\n\n");
-  }
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(currentText());
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1400);
-    } catch {
-      /* clipboard blocked — no-op */
-    }
   }
 
   const pill = (m: Mode, label: string) => (
@@ -182,7 +170,10 @@ export function ReadingPane({
           {hasLayers && pill("clean", "Clean")}
           {hasLayers && pill("formatted", "Formatted")}
         </div>
-        <button className="rp-copy" onClick={handleCopy}>
+        <button
+          className="rp-copy"
+          onClick={() => flashCopied(() => navigator.clipboard.writeText(currentText()))}
+        >
           {copied ? "Copied" : "Copy"}
         </button>
       </div>

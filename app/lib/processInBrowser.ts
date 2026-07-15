@@ -3,7 +3,6 @@
 import type { Note } from "@core/types";
 import { transcribe } from "./providers/openaiStt";
 import {
-  buildConcepts,
   buildDirectives,
   buildKeyMoments,
   buildLayers,
@@ -28,10 +27,9 @@ function makeId(filename: string, now = new Date()): string {
 export async function processInBrowser(file: File): Promise<ProcessedNote> {
   const transcript = await transcribe(file);
   // The derived branches are independent of each other — run them in parallel.
-  const [layers, keymoments, concepts, summary, annotations] = await Promise.all([
+  const [layers, keymoments, summary, annotations] = await Promise.all([
     buildLayers(transcript),
     buildKeyMoments(transcript),
-    buildConcepts(transcript),
     buildSummary(transcript),
     buildDirectives(transcript),
   ]);
@@ -44,7 +42,6 @@ export async function processInBrowser(file: File): Promise<ProcessedNote> {
     transcript,
     layers,
     keymoments,
-    concepts,
     summary,
     annotations,
   };
