@@ -58,7 +58,7 @@ export function TagChips({
         />
       ) : (
         <button className="tc-add" onClick={() => setAdding(true)}>
-          + Tag
+          + Add tag
         </button>
       )}
     </div>
