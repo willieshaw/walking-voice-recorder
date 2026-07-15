@@ -46,7 +46,8 @@ export function StickyPlayer({ note }: { note: Note }) {
   const seek = useFocus((s) => s.seek);
   const togglePlay = useFocus((s) => s.togglePlay);
   const [peaks, setPeaks] = useState<Float32Array | null>(null);
-  const [scrolled, setScrolled] = useState(false);
+  const [stuck, setStuck] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [hover, setHover] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -56,24 +57,36 @@ export function StickyPlayer({ note }: { note: Note }) {
   const moments = deriveAnnotations(note).filter((a) => a.kind === "moment");
   const chapters = toChapters(moments, duration);
   const current = chapters.find((c) => currentTime >= c.tStart && currentTime < c.tEnd);
-  // Full height at the top of the note; collapses to a slim bar once scrolled, and
+  // Full height at the top of the note; collapses to a slim bar once stuck, and
   // re-expands on hover so the chapters stay one gesture away.
-  const expanded = !scrolled || hover;
+  const expanded = !collapsed || hover;
 
   // "Stuck" = the card has actually reached the top of the scroll area (its sticky offset),
-  // not merely that the page scrolled at all. Only then does it collapse.
+  // not merely that the page scrolled at all.
   useEffect(() => {
     const root = rootRef.current;
     const scroller = root?.closest(".main") as HTMLElement | null;
     if (!root || !scroller) return;
     const onScroll = () => {
       const refTop = scroller.getBoundingClientRect().top + STICKY_TOP;
-      setScrolled(root.getBoundingClientRect().top <= refTop + 1);
+      setStuck(root.getBoundingClientRect().top <= refTop + 1);
     };
     scroller.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => scroller.removeEventListener("scroll", onScroll);
   }, [note.id]);
+
+  // Collapse is a SEPARATE, deferred motion: the card sticks first, then a beat later it
+  // folds shut in one gesture — so the fold doesn't ride frame-by-frame with the scroll.
+  // Un-sticking (scrolling back to the top) re-expands immediately, no delay.
+  useEffect(() => {
+    if (!stuck) {
+      setCollapsed(false);
+      return;
+    }
+    const t = window.setTimeout(() => setCollapsed(true), 220);
+    return () => window.clearTimeout(t);
+  }, [stuck]);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,7 +143,7 @@ export function StickyPlayer({ note }: { note: Note }) {
     <div className="sp-sticky" ref={rootRef}>
       <AudioPlayer src={note.audioUrl} hidden />
       <div
-        className={`sp-card${scrolled ? " sp-stuck" : ""}${expanded ? "" : " sp-min"}`}
+        className={`sp-card${stuck ? " sp-stuck" : ""}${expanded ? "" : " sp-min"}`}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
       >

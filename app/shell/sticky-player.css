@@ -33,6 +33,9 @@
   background: none;
   color: var(--text);
   cursor: pointer;
+  /* Pull left so its gap to the card edge (18px padding) matches the 11px top padding —
+   *  equal breathing room above and to the left of the button. */
+  margin-left: -7px;
 }
 .sp-play:hover {
   border-color: var(--accent);
