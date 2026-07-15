@@ -13,6 +13,7 @@ export function FoldersModal({
   onOpen,
   onMove,
   onCreate,
+  onRename,
   onPick,
 }: {
   summaries: NoteSummary[];
@@ -21,6 +22,7 @@ export function FoldersModal({
   onOpen: (id: string) => void;
   onMove: (id: string, folder: string | undefined) => void;
   onCreate: (name: string) => void;
+  onRename: (oldName: string, newName: string) => void;
   onPick: (folder: string | null) => void;
 }) {
   const [browse, setBrowse] = useState<string | null>(null);
@@ -28,6 +30,9 @@ export function FoldersModal({
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameVal, setRenameVal] = useState("");
+  const [menu, setMenu] = useState<{ folder: string; x: number; y: number } | null>(null);
 
   const inBrowse = summaries.filter((s) => (browse === null ? true : s.folder === browse));
   const count = (f: string) => summaries.filter((s) => s.folder === f).length;
@@ -39,6 +44,19 @@ export function FoldersModal({
     if (n) onCreate(n);
   }
 
+  function startRename(f: string) {
+    setMenu(null);
+    setRenameVal(f);
+    setRenaming(f);
+  }
+
+  function commitRename() {
+    const target = renaming;
+    const v = renameVal.trim();
+    setRenaming(null);
+    if (target && v && v !== target) onRename(target, v);
+  }
+
   return (
     <div className="modal-scrim" style={{ paddingTop: "10vh" }} onClick={onClose}>
       <div className="fm-card" onClick={(e) => e.stopPropagation()}>
@@ -47,7 +65,7 @@ export function FoldersModal({
             <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
           </svg>
           <span className="fm-title">Folders</span>
-          <span className="fm-hint">drag a note onto a folder to move it</span>
+          <span className="fm-hint">drag a note to move it · double-click a folder to rename</span>
         </div>
         <div className="fm-body">
           <div className="fm-left">
@@ -72,9 +90,9 @@ export function FoldersModal({
                 role="button"
                 tabIndex={0}
                 onClick={() => setBrowse(f)}
-                onDoubleClick={() => {
-                  onPick(f);
-                  onClose();
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({ folder: f, x: e.clientX, y: e.clientY });
                 }}
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -90,7 +108,32 @@ export function FoldersModal({
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
                   <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                 </svg>
-                <span className="fm-folder-name">{f}</span>
+                {renaming === f ? (
+                  <input
+                    className="fm-rename-input"
+                    autoFocus
+                    value={renameVal}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => setRenameVal(e.target.value)}
+                    onBlur={commitRename}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === "Enter") commitRename();
+                      else if (e.key === "Escape") setRenaming(null);
+                    }}
+                  />
+                ) : (
+                  <span
+                    className="fm-folder-name"
+                    title="Double-click to rename"
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      startRename(f);
+                    }}
+                  >
+                    {f}
+                  </span>
+                )}
                 <span className="fm-count">{count(f)}</span>
               </a>
             ))}
@@ -149,6 +192,25 @@ export function FoldersModal({
             {inBrowse.length === 0 && <div className="fm-empty">This folder is empty</div>}
           </div>
         </div>
+        {menu && (
+          <>
+            <div className="fm-menu-backdrop" onClick={() => setMenu(null)} />
+            <div className="fm-menu" style={{ left: menu.x, top: menu.y }}>
+              <button className="fm-menu-item" onClick={() => startRename(menu.folder)}>
+                Rename
+              </button>
+              <button
+                className="fm-menu-item"
+                onClick={() => {
+                  onPick(menu.folder);
+                  onClose();
+                }}
+              >
+                Open in Library
+              </button>
+            </div>
+          </>
+        )}
         <div className="fm-foot">
           <span>
             {folders.length} folder{folders.length === 1 ? "" : "s"} · {summaries.length} note

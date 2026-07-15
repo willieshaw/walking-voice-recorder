@@ -87,8 +87,8 @@ export interface Annotation {
   done?: boolean;
   /** User set this directive aside (persisted, not LLM output). Hidden inline, kept as data. */
   dismissed?: boolean;
-  /** kind "media": user-attached media (persisted, not LLM output). */
-  media?: { url: string; source: "found" | "uploaded" };
+  /** kind "media": a user-uploaded image (data URL), persisted, not LLM output. */
+  media?: { url: string; source: "uploaded" };
 }
 
 export interface Concept {

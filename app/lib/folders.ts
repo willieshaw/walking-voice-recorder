@@ -19,6 +19,16 @@ export function rememberFolder(name: string): void {
   if (!list.includes(trimmed)) localStorage.setItem(KEY, JSON.stringify([...list, trimmed]));
 }
 
+/** Rename a folder in the registry: drop the old label, add the new one (deduped). Notes
+ *  that carry the old label are updated separately by the caller. */
+export function renameFolder(oldName: string, newName: string): void {
+  const trimmed = newName.trim();
+  if (!trimmed) return;
+  const list = storedFolders().filter((f) => f !== oldName);
+  if (!list.includes(trimmed)) list.push(trimmed);
+  localStorage.setItem(KEY, JSON.stringify(list));
+}
+
 export function allFolders(noteFolders: (string | undefined)[]): string[] {
   const set = new Set(storedFolders());
   for (const f of noteFolders) if (f) set.add(f);

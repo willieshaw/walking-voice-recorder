@@ -12,7 +12,7 @@ import { DigestCard } from "./shell/DigestCard";
 import { SearchModal } from "./shell/SearchModal";
 import { FoldersModal } from "./shell/FoldersModal";
 import { TagChips } from "./shell/TagChips";
-import { allFolders, rememberFolder } from "./lib/folders";
+import { allFolders, rememberFolder, renameFolder } from "./lib/folders";
 import { hasKeys } from "./lib/keys";
 import {
   buildConcepts,
@@ -88,6 +88,22 @@ export default function App() {
     );
     await updateNote(target.id, { annotations });
     setNote((prev) => (prev && prev.id === target.id ? { ...prev, annotations } : prev));
+  }
+
+  /** Rename a folder everywhere: the registry, every note carrying the old label, and any
+   *  active filter. A folder is just a label, so this is a bulk relabel — no new concept. */
+  async function handleRenameFolder(oldName: string, newName: string) {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) return;
+    renameFolder(oldName, trimmed);
+    const affected = summaries.filter((s) => s.folder === oldName);
+    await Promise.all(affected.map((s) => updateNote(s.id, { folder: trimmed })));
+    setSummaries((prev) =>
+      prev.map((s) => (s.folder === oldName ? { ...s, folder: trimmed } : s)),
+    );
+    setNote((prev) => (prev && prev.folder === oldName ? { ...prev, folder: trimmed } : prev));
+    if (filterFolder === oldName) setFilterFolder(trimmed);
+    setFolderBump((n) => n + 1);
   }
 
   function openMemo(id: string) {
@@ -368,6 +384,7 @@ export default function App() {
             rememberFolder(name);
             setFolderBump((n) => n + 1);
           }}
+          onRename={(oldName, newName) => void handleRenameFolder(oldName, newName)}
           onPick={(f) => {
             setFilterFolder(f);
             setView("library");
