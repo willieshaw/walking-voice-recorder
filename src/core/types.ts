@@ -54,8 +54,9 @@ export interface Transcript {
 
 // ── DERIVED BRANCHES (each optional) ────────────────────────────────────────────
 
-/** One "clean it up" branch: progressively more formatted views of the same content. */
-export type LayerLevel = 0 | 1 | 2 | 3; // 0 Raw, 1 Cleaned, 2 Grouped, 3 Outline
+/** One "clean it up" branch: readings of the same content. Currently Raw + a light-touch
+ *  Cleaned; levels 2–3 (Grouped/Outline) are retired but kept in the range for old data. */
+export type LayerLevel = 0 | 1 | 2 | 3; // 0 Raw, 1 Cleaned, (2 Grouped, 3 Outline — retired)
 export interface FormattingLayers {
   levels: { level: LayerLevel; label: string; chunks: Chunk[] }[];
 }

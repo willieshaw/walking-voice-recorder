@@ -1,12 +1,11 @@
 // A derived branch off the transcript (the trunk): one way to "clean it up". Claude
-// produces three progressively more structured levels; we resolve each chunk's audio
-// timestamps locally from the transcript paragraph ids it cited, so every chunk in every
-// level can "click text -> seek audio".
+// produces a lightly-cleaned reading; we resolve each chunk's audio timestamps locally
+// from the transcript paragraph ids it cited, so every chunk can "click text -> seek audio".
 import type { Chunk, FormattingLayers, LayerLevel, Transcript } from "../../core/types.js";
 import type { Ctx, Processor } from "../types.js";
 import { buildPrompt, layersSchema, SYSTEM, type LayersResult, type LlmChunk } from "./prompt.js";
 
-/** Resolve LLM chunks (which cite transcript paragraph ids) into timestamped chunks.
+/** Resolve LLM chunks (which cite transcript paragraph ids) into timestamped prose chunks.
  *  Exported so the browser BYOK pipeline can reuse the exact same logic. */
 export function resolve(items: LlmChunk[], prefix: string, byId: Map<string, Chunk>): Chunk[] {
   let lastEnd = 0;
@@ -22,13 +21,14 @@ export function resolve(items: LlmChunk[], prefix: string, byId: Map<string, Chu
       tEnd = lastEnd;
     }
     lastEnd = tEnd;
-    return { id: `${prefix}-${i}`, text: it.text, kind: it.kind, tStart, tEnd };
+    return { id: `${prefix}-${i}`, text: it.text, kind: "text", tStart, tEnd };
   });
 }
 
-/** Combine the transcript (L0 Raw) with Claude's structured result (L1–L3) into the four
- *  levels, resolving each chunk's audio timestamps. Shared by the Node processor and the
- *  browser BYOK pipeline so both produce identical output. */
+/** Combine the transcript (L0 Raw) with Claude's cleaned reading (L1) into the two levels,
+ *  resolving each chunk's audio timestamps. Shared by the Node processor and the browser
+ *  BYOK pipeline so both produce identical output. (Grouped/Outline levels were retired
+ *  with the "Formatted" reading mode — see ReadingPane.) */
 export function assembleLayers(
   transcript: Transcript,
   result: LayersResult,
@@ -38,8 +38,6 @@ export function assembleLayers(
   const levels: { level: LayerLevel; label: string; chunks: Chunk[] }[] = [
     { level: 0, label: "Raw", chunks: raw },
     { level: 1, label: "Cleaned", chunks: resolve(result.cleaned, "l1", byId) },
-    { level: 2, label: "Grouped", chunks: resolve(result.grouped, "l2", byId) },
-    { level: 3, label: "Outline", chunks: resolve(result.outline, "l3", byId) },
   ];
   return { levels };
 }
@@ -56,7 +54,7 @@ export const layersLlmRequest = {
 export const layersProcessor: Processor<"layers"> = {
   id: "layers",
   reads: ["transcript"],
-  version: 1,
+  version: 2, // v2: cleaned-only, light-touch prompt (grouped/outline retired)
   async produce(ctx: Ctx): Promise<FormattingLayers> {
     const transcript = await ctx.getArtifact("transcript");
     if (!transcript) throw new Error("layers requires a transcript artifact.");

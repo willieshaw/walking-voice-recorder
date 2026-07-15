@@ -98,16 +98,8 @@ describe("transcribe pipeline (trunk)", () => {
 function fakeLlm(): LlmProvider {
   const result: LayersResult = {
     cleaned: [
-      { text: "Hello there, this is a test.", kind: "text", sourceIds: ["p0"] },
-      { text: "New idea here.", kind: "text", sourceIds: ["p1"] },
-    ],
-    grouped: [
-      { text: "Intro", kind: "heading", sourceIds: ["p0"] },
-      { text: "Hello there, this is a test.", kind: "text", sourceIds: ["p0"] },
-    ],
-    outline: [
-      { text: "Key points", kind: "heading", sourceIds: ["p0", "p1"] },
-      { text: "It's a test", kind: "bullet", sourceIds: ["p0"] },
+      { text: "Hello there, this is a test.", sourceIds: ["p0"] },
+      { text: "New idea here.", sourceIds: ["p1"] },
     ],
   };
   return {
@@ -119,29 +111,20 @@ function fakeLlm(): LlmProvider {
 }
 
 describe("layers branch (derived off transcript)", () => {
-  it("produces L0–L3 with timestamps resolved from cited paragraphs", async () => {
+  it("produces Raw + Cleaned with timestamps resolved from cited paragraphs", async () => {
     const res = await runPipeline(NOTE_ID, { only: "layers", llm: fakeLlm() });
     expect(res.ran).toContain("layers");
 
     const layers = await readArtifact(NOTE_ID, "layers");
     expect(layers).not.toBeNull();
-    expect(layers!.levels.map((l) => l.label)).toEqual([
-      "Raw",
-      "Cleaned",
-      "Grouped",
-      "Outline",
-    ]);
+    expect(layers!.levels.map((l) => l.label)).toEqual(["Raw", "Cleaned"]);
 
     // L0 Raw mirrors the transcript paragraphs (p0 [0,4], p1 [7,9]).
     expect(layers!.levels[0].chunks).toHaveLength(2);
 
-    // L1 Cleaned chunks inherit timestamps from their cited paragraph.
+    // L1 Cleaned chunks inherit timestamps from their cited paragraph, all kind "text".
     const cleaned = layers!.levels[1].chunks;
-    expect(cleaned[0]).toMatchObject({ tStart: 0, tEnd: 4 });
-    expect(cleaned[1]).toMatchObject({ tStart: 7, tEnd: 9 });
-
-    // L3 Outline heading cites both paragraphs -> spans the whole range.
-    const outlineHeading = layers!.levels[3].chunks[0];
-    expect(outlineHeading).toMatchObject({ kind: "heading", tStart: 0, tEnd: 9 });
+    expect(cleaned[0]).toMatchObject({ kind: "text", tStart: 0, tEnd: 4 });
+    expect(cleaned[1]).toMatchObject({ kind: "text", tStart: 7, tEnd: 9 });
   });
 });

@@ -7,8 +7,11 @@ import { SettingsKeys } from "./components/SettingsKeys";
 import { EditableTitle } from "./components/EditableTitle";
 import { LibraryFeed, formatNoteDate } from "./shell/LibraryFeed";
 import { StickyPlayer } from "./shell/StickyPlayer";
-import { ReadingPane, type AnnotationPatch } from "./shell/ReadingPane";
+import { ReadingPane } from "./shell/ReadingPane";
 import { DigestCard } from "./shell/DigestCard";
+
+/** The subset of an annotation a user can mutate (currently just a to-do's done state). */
+type AnnotationPatch = Partial<Pick<Annotation, "done">>;
 import { SearchModal } from "./shell/SearchModal";
 import { FoldersModal } from "./shell/FoldersModal";
 import { TagChips } from "./shell/TagChips";
@@ -427,10 +430,7 @@ export default function App() {
                   </div>
                 )}
 
-                <ReadingPane
-                  note={note}
-                  onPatchAnnotation={(a, patch) => void patchAnnotation(a, patch)}
-                />
+                <ReadingPane note={note} />
               </>
             )}
           </div>
