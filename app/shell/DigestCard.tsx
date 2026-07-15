@@ -4,6 +4,7 @@
 import { useState } from "react";
 import type { Annotation, Note } from "@core/types";
 import { deriveAnnotations } from "@core/annotations";
+import { copyTodos } from "../lib/clipboard";
 import "./digest-card.css";
 
 export function DigestCard({
@@ -14,6 +15,7 @@ export function DigestCard({
   onToggleTodo: (annotation: Annotation) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const todos = deriveAnnotations(note).filter((a) => a.kind === "todo" && !a.dismissed);
   const keyPoints =
     note.layers?.levels
@@ -69,7 +71,20 @@ export function DigestCard({
           )}
           {todos.length > 0 && (
             <section className="dg-section">
-              <div className="dg-label">To do</div>
+              <div className="dg-section-head">
+                <div className="dg-label">To do</div>
+                <button
+                  className="dg-copy"
+                  onClick={async () => {
+                    if (await copyTodos(todos)) {
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1400);
+                    }
+                  }}
+                >
+                  {copied ? "Copied" : "Copy"}
+                </button>
+              </div>
               <div className="dg-todos">
                 {todos.map((t) => (
                   <label key={t.id} className="dg-todo" onClick={() => onToggleTodo(t)}>

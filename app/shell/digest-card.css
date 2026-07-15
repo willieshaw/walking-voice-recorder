@@ -80,6 +80,30 @@
   color: var(--muted);
   margin-bottom: 11px;
 }
+.dg-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dg-section-head .dg-label {
+  margin-bottom: 11px;
+}
+.dg-copy {
+  font: inherit;
+  font-size: 11px;
+  color: var(--text-2);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 3px 10px;
+  margin-bottom: 11px;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.dg-copy:hover {
+  color: var(--text);
+  border-color: var(--hairline);
+}
 .dg-summary {
   margin: 0;
   font-family: "Newsreader", serif;

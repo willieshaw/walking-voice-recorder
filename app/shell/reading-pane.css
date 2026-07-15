@@ -164,6 +164,29 @@ h2.cc2-chunk::before {
   color: var(--muted);
   text-decoration: line-through;
 }
+.dir-todo-copy {
+  margin-left: auto;
+  align-self: center;
+  flex: none;
+  font: inherit;
+  font-size: 11px;
+  color: var(--text-2);
+  background: var(--surface);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 7px;
+  padding: 3px 10px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.dir-todo:hover .dir-todo-copy,
+.dir-todo-copy:focus-visible {
+  opacity: 1;
+}
+.dir-todo-copy:hover {
+  color: var(--text);
+  border-color: rgba(0, 0, 0, 0.25);
+}
 
 .dir-media {
   display: flex;

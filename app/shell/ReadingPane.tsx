@@ -8,6 +8,7 @@ import type { Annotation, Chunk, Note } from "@core/types";
 import { deriveAnnotations } from "@core/annotations";
 import { useFocus } from "@core/focus";
 import { formatTime } from "../components/AudioPlayer";
+import { copyTodos } from "../lib/clipboard";
 import "../experiences/clean-read/clean-read.css";
 import "./reading-pane.css";
 
@@ -20,6 +21,7 @@ interface DirectiveProps {
 }
 
 function TodoCard({ a, onPatchAnnotation }: { a: Annotation } & DirectiveProps) {
+  const [copied, setCopied] = useState(false);
   return (
     <label className="dir-todo" onClick={() => onPatchAnnotation(a, { done: !a.done })}>
       <span className={`dir-todo-box${a.done ? " dir-todo-box-done" : ""}`}>
@@ -29,6 +31,18 @@ function TodoCard({ a, onPatchAnnotation }: { a: Annotation } & DirectiveProps) 
         <span className="dir-tag dir-tag-todo">To-do</span>
         <span className={`dir-todo-text${a.done ? " dir-todo-text-done" : ""}`}>{a.label}</span>
       </span>
+      <button
+        className="dir-todo-copy"
+        onClick={async (e) => {
+          e.stopPropagation();
+          if (await copyTodos([{ label: a.label, done: a.done }])) {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1400);
+          }
+        }}
+      >
+        {copied ? "Copied" : "Copy"}
+      </button>
     </label>
   );
 }
