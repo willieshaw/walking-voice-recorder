@@ -68,8 +68,14 @@ export function DropZone({
         </span>
       )}
       {status.kind === "idle" && (
-        <span className="dz-msg">
-          <strong>Drop a recording here</strong> — or click to choose a file.
+        <span className="dz-idle">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+            <path d="M12 15V4" />
+            <path d="M7.5 8.5L12 4l4.5 4.5" />
+            <path d="M4 15v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
+          </svg>
+          <strong className="dz-title">Drop audio to transcribe</strong>
+          <span className="dz-sub">MP3, WAV, m4a — or click to browse</span>
         </span>
       )}
       {status.kind === "error" && (
