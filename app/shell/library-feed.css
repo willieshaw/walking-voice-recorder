@@ -27,10 +27,8 @@
   margin-bottom: 2px;
 }
 .lf-row {
-  display: grid;
-  grid-template-columns: 1fr 132px;
-  gap: 28px;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
   padding: 22px 8px;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
@@ -38,13 +36,17 @@
 .lf-row:hover {
   background: rgba(0, 0, 0, 0.02);
 }
-.lf-main {
-  min-width: 0;
+/* The top line: date/folder on the left, the mini waveform + duration on the right. */
+.lf-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 9px;
 }
 .lf-meta {
   font-size: 11px;
   color: var(--muted);
-  margin-bottom: 7px;
 }
 .lf-row-title {
   margin: 0 0 6px;
@@ -54,12 +56,12 @@
   letter-spacing: -0.01em;
   line-height: 1.2;
 }
+/* Title and summary run the full width of the row now. */
 .lf-snippet {
   margin: 0;
   font-size: 13.5px;
   line-height: 1.5;
   color: var(--text-2);
-  max-width: 60ch;
   display: -webkit-box;
   -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
@@ -73,16 +75,16 @@
 }
 .lf-side {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
+  flex: none;
 }
 .lf-wave {
   display: flex;
   align-items: center;
   gap: 1.5px;
-  height: 30px;
-  width: 120px;
+  height: 20px;
+  width: 116px;
 }
 .lf-wave span {
   flex: 1;

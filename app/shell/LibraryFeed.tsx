@@ -29,7 +29,7 @@ function MiniWave({ seed }: { seed: string }) {
   return (
     <div className="lf-wave" aria-hidden>
       {bars.map((v, i) => (
-        <span key={i} style={{ height: `${Math.round(v * 30)}px` }} />
+        <span key={i} style={{ height: `${Math.round(v * 20)}px` }} />
       ))}
     </div>
   );
@@ -64,27 +64,27 @@ export function LibraryFeed({
             if (e.key === "Enter" || e.key === " ") onOpen(s.id);
           }}
         >
-          <div className="lf-main">
-            <div className="lf-meta">
+          <div className="lf-topline">
+            <span className="lf-meta">
               {s.folder ? `${s.folder} · ` : ""}
               {formatNoteDate(s.createdAt)}
+            </span>
+            <span className="lf-side">
+              <MiniWave seed={s.id} />
+              <span className="lf-dur">{formatTime(s.durationSec)}</span>
+            </span>
+          </div>
+          <h2 className="lf-row-title">{s.title}</h2>
+          {s.snippet && <p className="lf-snippet">{s.snippet}</p>}
+          {s.tags.length > 0 && (
+            <div className="lf-tags">
+              {s.tags.map((t) => (
+                <span key={t} className="tc-mini">
+                  {t}
+                </span>
+              ))}
             </div>
-            <h2 className="lf-row-title">{s.title}</h2>
-            {s.snippet && <p className="lf-snippet">{s.snippet}</p>}
-            {s.tags.length > 0 && (
-              <div className="lf-tags">
-                {s.tags.map((t) => (
-                  <span key={t} className="tc-mini">
-                    {t}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="lf-side">
-            <MiniWave seed={s.id} />
-            <span className="lf-dur">{formatTime(s.durationSec)}</span>
-          </div>
+          )}
         </a>
       ))}
     </div>
