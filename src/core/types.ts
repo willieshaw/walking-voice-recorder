@@ -142,6 +142,9 @@ export interface Note {
   tags?: string[];
   folder?: string;
   pinned?: boolean;
+  /** Soft delete (same label facet): set when the user deletes the note. Trashed notes are
+   *  a filtered view in Settings ("Recently deleted") until restored or purged at 30 days. */
+  deletedAt?: number;
   transcript?: Transcript;
   layers?: FormattingLayers;
   keymoments?: KeyMoment[];

@@ -3,12 +3,13 @@ import type { Annotation, Note } from "@core/types";
 import { useFocus } from "@core/focus";
 import { formatTime } from "./components/AudioPlayer";
 import { DropZone } from "./components/DropZone";
-import { SettingsKeys } from "./components/SettingsKeys";
 import { EditableTitle } from "./components/EditableTitle";
 import { LibraryFeed, formatNoteDate } from "./shell/LibraryFeed";
 import { StickyPlayer } from "./shell/StickyPlayer";
 import { ReadingPane } from "./shell/ReadingPane";
 import { DigestCard } from "./shell/DigestCard";
+import { MemoMenu } from "./shell/MemoMenu";
+import { SettingsPage } from "./shell/SettingsPage";
 
 /** The subset of an annotation a user can mutate (currently just a to-do's done state). */
 type AnnotationPatch = Partial<Pick<Annotation, "done">>;
@@ -22,6 +23,8 @@ import {
   addSummaryVariant,
   getNote,
   listNotes,
+  purgeExpired,
+  purgeNote,
   renameNote,
   saveNote,
   updateAnnotation,
@@ -33,13 +36,15 @@ import { processInBrowser } from "./lib/processInBrowser";
 import "./app.css";
 
 export default function App() {
-  const [view, setView] = useState<"library" | "memo">("library");
+  // First run (no API key yet) lands on Settings, where the key panel lives.
+  const [view, setView] = useState<"library" | "memo" | "settings">(
+    hasKeys() ? "library" : "settings",
+  );
   const [summaries, setSummaries] = useState<NoteSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [note, setNote] = useState<Note | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [keysReady, setKeysReady] = useState(hasKeys());
-  const [showSettings, setShowSettings] = useState(!hasKeys());
   const [upgrading, setUpgrading] = useState(false);
   const [upgradeError, setUpgradeError] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -53,7 +58,8 @@ export default function App() {
   const audioUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    listNotes().then(setSummaries);
+    // Drop trashed notes whose 30-day window lapsed, then load the rest.
+    purgeExpired().then(listNotes).then(setSummaries);
   }, []);
 
   useEffect(() => {
@@ -70,7 +76,12 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const folders = allFolders(summaries.map((s) => s.folder));
+  // Soft delete is a label facet: the feed/sidebar are the live view, the Settings
+  // trash is the deleted view — both filters over the same summaries, no new subsystem.
+  const live = summaries.filter((s) => !s.deletedAt);
+  const trashed = summaries.filter((s) => s.deletedAt);
+
+  const folders = allFolders(live.map((s) => s.folder));
   void folderBump;
 
   /** Persist label-facet changes (tags/folder/pinned) and mirror them into state. */
@@ -148,6 +159,40 @@ export default function App() {
     await renameNote(id, title);
     setSummaries((prev) => prev.map((s) => (s.id === id ? { ...s, title } : s)));
     setNote((prev) => (prev && prev.id === id ? { ...prev, title } : prev));
+  }
+
+  /** Soft delete: stamp `deletedAt` so the note moves to Settings › Recently deleted.
+   *  Reversible for 30 days, so no confirm here — the destructive step is the purge. */
+  async function handleDelete(id: string) {
+    const deletedAt = Date.now();
+    await updateNote(id, { deletedAt });
+    setSummaries((prev) => prev.map((s) => (s.id === id ? { ...s, deletedAt } : s)));
+    if (selectedId === id) {
+      setSelectedId(null);
+      setNote(null);
+      setView("library");
+    }
+  }
+
+  async function handleRestore(id: string) {
+    await updateNote(id, { deletedAt: undefined });
+    setSummaries((prev) => prev.map((s) => (s.id === id ? { ...s, deletedAt: undefined } : s)));
+  }
+
+  /** Permanent delete of one trashed note (audio included). */
+  async function handlePurge(id: string) {
+    const target = trashed.find((t) => t.id === id);
+    if (!window.confirm(`Permanently delete “${target?.title ?? "this note"}”? This can’t be undone.`)) return;
+    await purgeNote(id);
+    setSummaries((prev) => prev.filter((s) => s.id !== id));
+  }
+
+  /** Permanent delete of everything in the trash. */
+  async function handleEmptyTrash() {
+    const n = trashed.length;
+    if (!window.confirm(`Permanently delete ${n} note${n === 1 ? "" : "s"}? This can’t be undone.`)) return;
+    await Promise.all(trashed.map((t) => purgeNote(t.id)));
+    setSummaries((prev) => prev.filter((s) => !s.deletedAt));
   }
 
   // Older notes were processed before the newer analyses existed; they can be upgraded
@@ -233,21 +278,6 @@ export default function App() {
           <h1 className="brand" onClick={goLibrary} role="button" tabIndex={0}>
             Thoughts
           </h1>
-          <button className="icon-btn" title="API keys" onClick={() => setShowSettings(true)}>
-            <svg
-              width="19"
-              height="19"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-          </button>
         </div>
         <DropZone onUpload={handleUpload} disabled={!keysReady} />
         <button className="side-search" onClick={() => setSearchOpen(true)}>
@@ -267,7 +297,7 @@ export default function App() {
           <span className="side-folders-label">Folders</span>
           <span className="side-folders-count">{folders.length}</span>
         </button>
-        {summaries.length === 0 ? (
+        {live.length === 0 ? (
           <p className="hint">
             {keysReady
               ? "No notes yet. Drop a recording above to get started."
@@ -275,11 +305,11 @@ export default function App() {
           </p>
         ) : (
           <>
-            {summaries.some((s) => s.pinned) && (
+            {live.some((s) => s.pinned) && (
               <>
                 <div className="side-label">Pinned</div>
                 <ul className="note-list note-list-pinned">
-                  {summaries
+                  {live
                     .filter((s) => s.pinned)
                     .map((s) => (
                       <SidebarNote
@@ -295,7 +325,7 @@ export default function App() {
             )}
             <div className="side-label">Recent</div>
             <ul className="note-list">
-              {summaries
+              {live
                 .filter((s) => !s.pinned)
                 .map((s) => (
                   <SidebarNote
@@ -309,7 +339,7 @@ export default function App() {
             </ul>
           </>
         )}
-        <div className="account-row">
+        <button className="account-row" onClick={() => setView("settings")}>
           <span className="account-avatar">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
               <circle cx="12" cy="8" r="4" />
@@ -317,26 +347,42 @@ export default function App() {
             </svg>
           </span>
           <div className="account-meta">
-            <div className="account-name">Your Account</div>
-            <div className="account-sub">Coming soon</div>
+            <div className="account-name">Settings</div>
+            <div className="account-sub">Account &amp; preferences</div>
           </div>
-          <span className="account-badge">Soon</span>
-        </div>
+          <svg
+            className="account-gear"
+            width="17"
+            height="17"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
       </aside>
 
       <main className="main">
-        {showSettings ? (
-          <SettingsKeys
-            onSaved={() => {
+        {view === "settings" ? (
+          <SettingsPage
+            trashed={trashed}
+            onBack={goLibrary}
+            onRestore={(id) => void handleRestore(id)}
+            onPurge={(id) => void handlePurge(id)}
+            onEmpty={() => void handleEmptyTrash()}
+            onKeysSaved={() => {
               setKeysReady(hasKeys());
-              setShowSettings(false);
+              setView("library");
             }}
           />
         ) : view === "library" ? (
           <LibraryFeed
-            summaries={
-              filterFolder ? summaries.filter((s) => s.folder === filterFolder) : summaries
-            }
+            summaries={filterFolder ? live.filter((s) => s.folder === filterFolder) : live}
             title={filterFolder ?? "All notes"}
             onOpen={openMemo}
           />
@@ -398,6 +444,15 @@ export default function App() {
                         Export
                       </button>
                     </span>
+                    <MemoMenu
+                      folders={folders}
+                      currentFolder={note.folder}
+                      onMove={(folder) => {
+                        if (folder) rememberFolder(folder);
+                        void patchLabels(note.id, { folder });
+                      }}
+                      onDelete={() => void handleDelete(note.id)}
+                    />
                   </div>
                 </div>
                 <TagChips
@@ -440,7 +495,7 @@ export default function App() {
       {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} onOpen={openMemo} />}
       {foldersOpen && (
         <FoldersModal
-          summaries={summaries}
+          summaries={live}
           folders={folders}
           onClose={() => setFoldersOpen(false)}
           onOpen={openMemo}

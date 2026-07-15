@@ -12,6 +12,8 @@ export interface NoteSummary {
   tags: string[];
   folder?: string;
   pinned: boolean;
+  /** Set when the note is in the trash ("Recently deleted"). Views filter on this. */
+  deletedAt?: number;
 }
 
 /** Stored shape: the note's data minus the ephemeral object-URL, plus the audio blob. */
@@ -75,10 +77,11 @@ export async function listNotes(): Promise<NoteSummary[]> {
       title,
       durationSec,
       createdAt,
-      snippet: (data.transcript?.text ?? "").replace(/\s+/g, " ").trim().slice(0, 180),
+      snippet: (data.transcript?.text ?? "").replace(/\s+/g, " ").trim().slice(0, 400),
       tags: data.tags ?? [],
       folder: data.folder,
       pinned: data.pinned ?? false,
+      deletedAt: data.deletedAt,
     }));
 }
 
@@ -97,6 +100,7 @@ export async function searchNotes(query: string): Promise<SearchHit[]> {
   if (!q) return [];
   const all = await allByRecency();
   return all.flatMap((n) => {
+    if (n.data.deletedAt) return []; // trashed notes don't surface in search
     const text = (n.data.transcript?.text ?? "").replace(/\s+/g, " ");
     const inTitle = n.title.toLowerCase().includes(q);
     const inTags = (n.data.tags ?? []).some((t) => t.toLowerCase().includes(q));
@@ -176,6 +180,23 @@ export async function addSummaryVariant(
     stored.data = { ...stored.data, summaries: next };
   });
   return next;
+}
+
+/** How long a soft-deleted note lives in "Recently deleted" before it's purged. */
+export const TRASH_RETENTION_DAYS = 30;
+
+/** Permanently remove a note — audio blob and all artifacts. Only reachable from the
+ *  trash view (per-item delete or "Empty now"); everyday delete is the soft `deletedAt`. */
+export async function purgeNote(id: string): Promise<void> {
+  await tx("readwrite", (s) => s.delete(id));
+}
+
+/** Drop any trashed note whose retention window has lapsed. Called once on app load. */
+export async function purgeExpired(): Promise<void> {
+  const all = await tx<StoredNote[]>("readonly", (s) => s.getAll());
+  const cutoff = Date.now() - TRASH_RETENTION_DAYS * 86_400_000;
+  const expired = all.filter((n) => n.data.deletedAt && n.data.deletedAt < cutoff);
+  await Promise.all(expired.map((n) => purgeNote(n.id)));
 }
 
 /** Patch one annotation by id inside a single read-modify-write, so concurrent toggles

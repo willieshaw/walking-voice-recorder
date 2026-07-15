@@ -61,7 +61,7 @@
   color: var(--text-2);
   max-width: 60ch;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
