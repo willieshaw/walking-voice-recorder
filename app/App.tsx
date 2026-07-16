@@ -26,7 +26,17 @@ interface EditEntry {
 import { SearchModal } from "./shell/SearchModal";
 import { FoldersModal } from "./shell/FoldersModal";
 import { TagChips } from "./shell/TagChips";
+import { ProjectSwitcher } from "./shell/ProjectSwitcher";
 import { allFolders, rememberFolder, renameFolder } from "./lib/folders";
+import {
+  DEFAULT_PROJECT,
+  activeProject as storedActiveProject,
+  allProjects,
+  rememberProject,
+  removeProjectStored,
+  renameProjectStored,
+  setActiveProjectStored,
+} from "./lib/projects";
 import { hasKeys } from "./lib/keys";
 import {
   buildDirectives,
@@ -71,6 +81,20 @@ export default function App() {
   const [foldersOpen, setFoldersOpen] = useState(false);
   const [filterFolder, setFilterFolder] = useState<string | null>(null);
   const [folderBump, setFolderBump] = useState(0); // re-derive folders after "New folder"
+  // The active project ("drive"). A project is a label facet on notes; every surface below
+  // filters by this. Persisted so reloads land where you left off.
+  const [project, setProject] = useState(storedActiveProject());
+  const [projectBump, setProjectBump] = useState(0); // re-derive after create/rename/delete
+  // Sidebar visibility (the collapse toggle next to the project switcher).
+  const [sideCollapsed, setSideCollapsed] = useState(
+    () => localStorage.getItem("wvr.sideCollapsed") === "1",
+  );
+  function toggleSidebar() {
+    setSideCollapsed((v) => {
+      localStorage.setItem("wvr.sideCollapsed", v ? "0" : "1");
+      return !v;
+    });
+  }
   // Which sidebar dropdowns are expanded — persisted so the sidebar keeps its shape.
   const [openSecs, setOpenSecs] = useState<{ folders: boolean; recent: boolean }>(() => {
     try {
@@ -137,13 +161,17 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Soft delete is a label facet: the feed/sidebar are the live view, the Settings
-  // trash is the deleted view — both filters over the same summaries, no new subsystem.
-  const live = summaries.filter((s) => !s.deletedAt);
-  const trashed = summaries.filter((s) => s.deletedAt);
+  // Projects and soft delete are both label facets: first scope everything to the active
+  // project, then split live (feed/sidebar) from trashed (Settings) — filtered views over
+  // the same summaries, no new subsystem.
+  const projects = allProjects(summaries.map((s) => s.project));
+  const inProject = summaries.filter((s) => (s.project ?? DEFAULT_PROJECT) === project);
+  const live = inProject.filter((s) => !s.deletedAt);
+  const trashed = inProject.filter((s) => s.deletedAt);
 
-  const folders = allFolders(live.map((s) => s.folder));
+  const folders = allFolders(live.map((s) => s.folder), project);
   void folderBump;
+  void projectBump;
 
   /** Persist label-facet changes (tags/folder/pinned) and mirror them into state. */
   async function patchLabels(
@@ -177,8 +205,8 @@ export default function App() {
     ) {
       return;
     }
-    renameFolder(oldName, trimmed);
-    const affected = summaries.filter((s) => s.folder === oldName);
+    renameFolder(oldName, trimmed, project);
+    const affected = inProject.filter((s) => s.folder === oldName);
     await Promise.all(affected.map((s) => updateNote(s.id, { folder: trimmed })));
     setSummaries((prev) =>
       prev.map((s) => (s.folder === oldName ? { ...s, folder: trimmed } : s)),
@@ -209,8 +237,76 @@ export default function App() {
     setView("library");
   }
 
+  /** Switch project spaces: everything resets to that project's library view. */
+  function switchProject(p: string) {
+    if (p === project) return;
+    setProject(p);
+    setActiveProjectStored(p);
+    setFilterFolder(null);
+    setSelectedId(null);
+    setNote(null);
+    setCombined(null);
+    setView("library");
+  }
+
+  function createProject(name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    rememberProject(trimmed);
+    setProjectBump((n) => n + 1);
+    switchProject(trimmed);
+  }
+
+  /** Rename a project: the registry plus a bulk relabel of its notes (same shape as a
+   *  folder rename — a project is just a label). */
+  async function renameProject(oldName: string, newName: string) {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName || oldName === DEFAULT_PROJECT) return;
+    if (
+      projects.includes(trimmed) &&
+      !window.confirm(`Merge "${oldName}" into the existing project "${trimmed}"?`)
+    ) {
+      return;
+    }
+    renameProjectStored(oldName, trimmed);
+    const affected = summaries.filter((s) => (s.project ?? DEFAULT_PROJECT) === oldName);
+    await Promise.all(affected.map((s) => updateNote(s.id, { project: trimmed })));
+    setSummaries((prev) =>
+      prev.map((s) =>
+        (s.project ?? DEFAULT_PROJECT) === oldName ? { ...s, project: trimmed } : s,
+      ),
+    );
+    setProjectBump((n) => n + 1);
+    if (project === oldName) {
+      setProject(trimmed);
+      setActiveProjectStored(trimmed);
+    }
+  }
+
+  /** Delete a project space: its notes move to Default (nothing is lost). */
+  async function deleteProject(name: string) {
+    if (name === DEFAULT_PROJECT) return;
+    const count = summaries.filter((s) => (s.project ?? DEFAULT_PROJECT) === name).length;
+    const detail = count
+      ? ` Its ${count} note${count === 1 ? "" : "s"} will move to ${DEFAULT_PROJECT}.`
+      : "";
+    if (!window.confirm(`Delete the project "${name}"?${detail}`)) return;
+    removeProjectStored(name);
+    const affected = summaries.filter((s) => (s.project ?? DEFAULT_PROJECT) === name);
+    await Promise.all(affected.map((s) => updateNote(s.id, { project: undefined })));
+    setSummaries((prev) =>
+      prev.map((s) =>
+        (s.project ?? DEFAULT_PROJECT) === name ? { ...s, project: undefined } : s,
+      ),
+    );
+    setProjectBump((n) => n + 1);
+    if (project === name) switchProject(DEFAULT_PROJECT);
+  }
+
   async function handleUpload(file: File) {
     const { note: n, audioBlob } = await processInBrowser(file);
+    // New notes land in the active project (Default stays unlabeled — legacy-compatible).
+    if (project !== DEFAULT_PROJECT) n.project = project;
     await saveNote(n, audioBlob);
     setSummaries(await listNotes());
     openMemo(n.id);
@@ -434,12 +530,27 @@ export default function App() {
   const activeNote = note ? (combined?.note ?? note) : null;
 
   return (
-    <div className="app">
+    <div className={`app${sideCollapsed ? " app-side-collapsed" : ""}`}>
       <aside className="sidebar">
         <div className="brand-row">
-          <h1 className="brand" onClick={goLibrary} role="button" tabIndex={0}>
-            Thoughts
-          </h1>
+          <ProjectSwitcher
+            projects={projects}
+            active={project}
+            onSwitch={switchProject}
+            onCreate={createProject}
+            onRename={(o, n) => void renameProject(o, n)}
+            onDelete={(p) => void deleteProject(p)}
+          />
+          <button
+            className="icon-btn side-toggle"
+            title="Collapse sidebar"
+            onClick={toggleSidebar}
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+              <rect x="3" y="4" width="18" height="16" rx="2.5" />
+              <path d="M9.5 4v16" />
+            </svg>
+          </button>
         </div>
         <DropZone onUpload={handleUpload} disabled={!keysReady} />
         <button className="side-search" onClick={() => setSearchOpen(true)}>
@@ -589,6 +700,18 @@ export default function App() {
       </aside>
 
       <main className="main">
+        {sideCollapsed && (
+          <button
+            className="icon-btn side-toggle side-toggle-floating"
+            title="Expand sidebar"
+            onClick={toggleSidebar}
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+              <rect x="3" y="4" width="18" height="16" rx="2.5" />
+              <path d="M9.5 4v16" />
+            </svg>
+          </button>
+        )}
         {view === "settings" ? (
           <SettingsPage
             trashed={trashed}
@@ -624,7 +747,7 @@ export default function App() {
                   onReanalyze={() => void handleUpgrade()}
                   onCombine={() => setCombineOpen(true)}
                   onMove={(folder) => {
-                    if (folder) rememberFolder(folder);
+                    if (folder) rememberFolder(folder, project);
                     void patchLabels(note.id, { folder });
                   }}
                   onDelete={() => void handleDelete(note.id)}
@@ -753,7 +876,9 @@ export default function App() {
         />
       )}
 
-      {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} onOpen={openMemo} />}
+      {searchOpen && (
+        <SearchModal project={project} onClose={() => setSearchOpen(false)} onOpen={openMemo} />
+      )}
       {foldersOpen && (
         <FoldersModal
           summaries={live}
@@ -762,7 +887,7 @@ export default function App() {
           onOpen={openMemo}
           onMove={(id, folder) => void patchLabels(id, { folder })}
           onCreate={(name) => {
-            rememberFolder(name);
+            rememberFolder(name, project);
             setFolderBump((n) => n + 1);
           }}
           onRename={(oldName, newName) => void handleRenameFolder(oldName, newName)}

@@ -5,9 +5,12 @@ import { formatNoteDate } from "./LibraryFeed";
 import "./search-modal.css";
 
 export function SearchModal({
+  project,
   onClose,
   onOpen,
 }: {
+  /** Active project space — search stays inside it. */
+  project: string;
   onClose: () => void;
   onOpen: (id: string) => void;
 }) {
@@ -24,13 +27,13 @@ export function SearchModal({
   useEffect(() => {
     let cancelled = false;
     const t = setTimeout(() => {
-      searchNotes(query).then((h) => !cancelled && setHits(h));
+      searchNotes(query, project).then((h) => !cancelled && setHits(h));
     }, 150);
     return () => {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [query]);
+  }, [query, project]);
 
   return (
     <div className="modal-scrim" onClick={onClose}>

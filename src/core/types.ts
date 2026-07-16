@@ -145,6 +145,9 @@ export interface Note {
   tags?: string[];
   folder?: string;
   pinned?: boolean;
+  /** Project space ("drive") this note lives in — same label facet as folder, one level
+   *  up. Absent = the Default project (so legacy notes need no migration). */
+  project?: string;
   /** Soft delete (same label facet): set when the user deletes the note. Trashed notes are
    *  a filtered view in Settings ("Recently deleted") until restored or purged at 30 days. */
   deletedAt?: number;

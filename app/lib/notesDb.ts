@@ -13,6 +13,8 @@ export interface NoteSummary {
   tags: string[];
   folder?: string;
   pinned: boolean;
+  /** Project space this note lives in; absent = the Default project. */
+  project?: string;
   /** Set when the note is in the trash ("Recently deleted"). Views filter on this. */
   deletedAt?: number;
 }
@@ -86,6 +88,7 @@ export async function listNotes(): Promise<NoteSummary[]> {
       tags: data.tags ?? [],
       folder: data.folder,
       pinned: data.pinned ?? false,
+      project: data.project,
       deletedAt: data.deletedAt,
     }));
 }
@@ -99,13 +102,14 @@ export interface SearchHit {
   snippet: string;
 }
 
-/** Client-side search over titles, tags, and full transcript text. */
-export async function searchNotes(query: string): Promise<SearchHit[]> {
+/** Client-side search over titles, tags, and full transcript text — within one project. */
+export async function searchNotes(query: string, project?: string): Promise<SearchHit[]> {
   const q = query.trim().toLowerCase();
   if (!q) return [];
   const all = await allByRecency();
   return all.flatMap((n) => {
     if (n.data.deletedAt) return []; // trashed notes don't surface in search
+    if (project !== undefined && (n.data.project ?? "Default") !== project) return [];
     const text = (n.data.transcript?.text ?? "").replace(/\s+/g, " ");
     const inTitle = n.title.toLowerCase().includes(q);
     const inTags = (n.data.tags ?? []).some((t) => t.toLowerCase().includes(q));
