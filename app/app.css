@@ -65,12 +65,9 @@ body {
   gap: 8px;
   padding: 2px 6px 14px;
 }
-/* Sidebar collapse: the aside disappears; a floating twin of the toggle re-opens it. */
+/* Sidebar collapse: a slim icon rail — the page stays visible beside it. */
 .app-side-collapsed {
-  grid-template-columns: 0 1fr;
-}
-.app-side-collapsed .sidebar {
-  display: none;
+  grid-template-columns: 58px 1fr;
 }
 .side-toggle {
   color: var(--muted);
@@ -78,13 +75,44 @@ body {
 .side-toggle:hover {
   color: var(--text);
 }
-.side-toggle-floating {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  z-index: 30;
-  background: var(--surface);
-  border: 1px solid var(--border);
+.sidebar-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0 16px;
+  overflow: hidden;
+}
+.rail-btn {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.rail-btn:hover {
+  background: rgba(0, 0, 0, 0.07);
+  color: var(--text);
+}
+/* The search icon wears a white box, like the mockup. */
+.rail-btn-search {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.rail-btn-search:hover {
+  background: #fff;
+  border-color: var(--hairline);
+}
+.rail-btn-bottom {
+  margin-top: auto;
 }
 .hint {
   color: var(--muted);
