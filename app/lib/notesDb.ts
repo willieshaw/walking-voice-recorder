@@ -7,7 +7,8 @@ export interface NoteSummary {
   title: string;
   durationSec: number;
   createdAt: number;
-  /** First line of the transcript, for the library feed. */
+  /** Feed preview: the AI summary (default variant), falling back to the transcript's
+   *  opening for notes that don't have one yet. */
   snippet: string;
   tags: string[];
   folder?: string;
@@ -77,7 +78,10 @@ export async function listNotes(): Promise<NoteSummary[]> {
       title,
       durationSec,
       createdAt,
-      snippet: (data.transcript?.text ?? "").replace(/\s+/g, " ").trim().slice(0, 400),
+      snippet: (data.summary ?? data.transcript?.text ?? "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 400),
       tags: data.tags ?? [],
       folder: data.folder,
       pinned: data.pinned ?? false,
