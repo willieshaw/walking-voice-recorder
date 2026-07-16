@@ -20,7 +20,13 @@ import { FoldersModal } from "./shell/FoldersModal";
 import { TagChips } from "./shell/TagChips";
 import { allFolders, rememberFolder, renameFolder } from "./lib/folders";
 import { hasKeys } from "./lib/keys";
-import { buildDirectives, buildKeyMoments, buildSummary } from "./lib/providers/openaiLlm";
+import {
+  buildDirectives,
+  buildKeyMoments,
+  buildLayers,
+  buildSummary,
+} from "./lib/providers/openaiLlm";
+import { CURRENT_ANALYSIS, staleAnalyses } from "@engine/processors/analysis";
 import {
   addSummaryVariant,
   getNote,
@@ -203,29 +209,46 @@ export default function App() {
     setSummaries((prev) => prev.filter((s) => !s.deletedAt));
   }
 
-  // Older notes were processed before the newer analyses existed; they can be upgraded
-  // from the stored transcript alone (no re-transcription, purely additive).
-  const needsUpgrade =
-    !!note?.transcript &&
-    (!note.keymoments || note.summary === undefined || !note.annotations);
+  // A note needs an upgrade when any analysis is missing OR was built with an older prompt
+  // (each processor's `version` is stamped onto the note at build time and compared here —
+  // bumping a version resurfaces this banner on every previously-processed note).
+  const staleKinds = note?.transcript ? staleAnalyses(note) : [];
+  const needsUpgrade = staleKinds.length > 0;
 
   async function handleUpgrade() {
     const target = note;
     if (!target?.transcript) return;
+    const stale = staleAnalyses(target);
+    if (!stale.length) return;
     setUpgrading(true);
     setUpgradeError(null);
     try {
-      const [keymoments, noteSummary, annotations] = await Promise.all([
-        target.keymoments ?? buildKeyMoments(target.transcript),
-        target.summary ?? buildSummary(target.transcript),
-        target.annotations ?? buildDirectives(target.transcript),
+      // Rebuild ONLY the stale analyses; fresh ones are kept as-is (no wasted calls).
+      const t = target.transcript;
+      const [layers, keymoments, noteSummary, rebuiltTodos] = await Promise.all([
+        stale.includes("layers") ? buildLayers(t) : target.layers,
+        stale.includes("keymoments") ? buildKeyMoments(t) : target.keymoments,
+        stale.includes("summary") ? buildSummary(t) : target.summary,
+        stale.includes("directives") ? buildDirectives(t) : target.annotations,
       ]);
-      await updateNote(target.id, { keymoments, summary: noteSummary, annotations });
-      setNote((prev) =>
-        prev && prev.id === target.id
-          ? { ...prev, keymoments, summary: noteSummary, annotations }
-          : prev,
+      // Re-extracted to-dos keep any checked-off state from the old list (matched by label).
+      const doneLabels = new Set(
+        (target.annotations ?? []).filter((a) => a.kind === "todo" && a.done).map((a) => a.label),
       );
+      const annotations = (rebuiltTodos ?? []).map((a) =>
+        a.kind === "todo" && doneLabels.has(a.label) ? { ...a, done: true } : a,
+      );
+      const patch: Partial<Note> = {
+        layers,
+        keymoments,
+        summary: noteSummary,
+        annotations,
+        artifactVersions: { ...target.artifactVersions, ...CURRENT_ANALYSIS },
+        // A new summary prompt invalidates the cached alternate variants too.
+        ...(stale.includes("summary") ? { summaries: undefined } : {}),
+      };
+      await updateNote(target.id, patch);
+      setNote((prev) => (prev && prev.id === target.id ? { ...prev, ...patch } : prev));
     } catch (e) {
       setUpgradeError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -514,8 +537,9 @@ export default function App() {
                 {needsUpgrade && !combined && (
                   <div className="upgrade-banner">
                     <span>
-                      This note can be upgraded with the latest analysis (overview summary,
-                      key moments, and extracted to-dos). Nothing existing is changed.
+                      This note was analyzed with older prompts. Upgrade re-runs the latest
+                      analysis (reading, summary, chapters, to-dos) — your recording and
+                      transcript are never touched.
                     </span>
                     <button
                       className="ghost-btn"

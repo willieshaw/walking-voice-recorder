@@ -162,6 +162,10 @@ export interface Note {
   summaries?: Record<string, string>;
   concepts?: Concept[];
   embeddings?: Embeddings;
+  /** Processor versions each analysis was built with (browser analog of ArtifactMeta.version).
+   *  Compared against the current processor versions to offer prompt upgrades; a missing
+   *  entry reads as version 0 (stale). See processors/analysis.ts. */
+  artifactVersions?: Partial<Record<ArtifactKind, number>>;
 }
 
 /** The manifest written by the CLI so the app knows which artifacts a note has. */

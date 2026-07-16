@@ -1,6 +1,7 @@
 // The whole processing pipeline, client-side: audio File -> transcript -> branches -> Note.
 // Replaces the old server round-trip. Runs with the tester's own keys.
 import type { Note } from "@core/types";
+import { CURRENT_ANALYSIS } from "@engine/processors/analysis";
 import { transcribe } from "./providers/openaiStt";
 import {
   buildDirectives,
@@ -44,6 +45,9 @@ export async function processInBrowser(file: File): Promise<ProcessedNote> {
     keymoments,
     summary,
     annotations,
+    // Stamp the prompt versions these analyses were built with, so a future prompt bump
+    // can offer this note an upgrade (see processors/analysis.ts).
+    artifactVersions: { ...CURRENT_ANALYSIS },
   };
   return { note, audioBlob: file };
 }
