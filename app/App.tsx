@@ -71,6 +71,25 @@ export default function App() {
   const [foldersOpen, setFoldersOpen] = useState(false);
   const [filterFolder, setFilterFolder] = useState<string | null>(null);
   const [folderBump, setFolderBump] = useState(0); // re-derive folders after "New folder"
+  // Which sidebar dropdowns are expanded — persisted so the sidebar keeps its shape.
+  const [openSecs, setOpenSecs] = useState<{ folders: boolean; recent: boolean }>(() => {
+    try {
+      return {
+        folders: true,
+        recent: true,
+        ...JSON.parse(localStorage.getItem("wvr.sideSections") ?? "{}"),
+      };
+    } catch {
+      return { folders: true, recent: true };
+    }
+  });
+  function toggleSec(k: "folders" | "recent") {
+    setOpenSecs((prev) => {
+      const next = { ...prev, [k]: !prev[k] };
+      localStorage.setItem("wvr.sideSections", JSON.stringify(next));
+      return next;
+    });
+  }
   const resetFocus = useFocus((s) => s.reset);
   // The object URL of the loaded note's audio. getNote mints a fresh one each call, so we
   // revoke the previous when a new note loads (and on unmount) — otherwise every note we
@@ -433,13 +452,67 @@ export default function App() {
             <span className="kbd-cmd">⌘</span>K
           </span>
         </button>
-        <button className="side-folders" onClick={() => setFoldersOpen(true)}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-            <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-          </svg>
-          <span className="side-folders-label">Folders</span>
-          <span className="side-folders-count">{folders.length}</span>
-        </button>
+        <div className="side-sec-row">
+          <button className="side-sec-head" onClick={() => toggleSec("folders")}>
+            <span className={`side-caret${openSecs.folders ? " side-caret-open" : ""}`}>›</span>
+            Folders
+            <span className="side-sec-count">{folders.length}</span>
+          </button>
+          <button
+            className="icon-btn side-sec-action"
+            title="Manage folders"
+            onClick={() => setFoldersOpen(true)}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="5" cy="12" r="1.6" />
+              <circle cx="12" cy="12" r="1.6" />
+              <circle cx="19" cy="12" r="1.6" />
+            </svg>
+          </button>
+        </div>
+        {openSecs.folders && (
+          <div className="side-folder-list">
+            <a
+              className={`side-folder${
+                filterFolder === null && view === "library" ? " side-folder-active" : ""
+              }`}
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                setFilterFolder(null);
+                setView("library");
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              <span className="side-folder-name">All notes</span>
+              <span className="side-folder-count">{live.length}</span>
+            </a>
+            {folders.map((f) => (
+              <a
+                key={f}
+                className={`side-folder${
+                  filterFolder === f && view === "library" ? " side-folder-active" : ""
+                }`}
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  setFilterFolder(f);
+                  setView("library");
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                  <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                </svg>
+                <span className="side-folder-name">{f}</span>
+                <span className="side-folder-count">
+                  {live.filter((s) => s.folder === f).length}
+                </span>
+              </a>
+            ))}
+          </div>
+        )}
         {live.length === 0 ? (
           <p className="hint">
             {keysReady
@@ -466,20 +539,25 @@ export default function App() {
                 </ul>
               </>
             )}
-            <div className="side-label">Recent</div>
-            <ul className="note-list">
-              {live
-                .filter((s) => !s.pinned)
-                .map((s) => (
-                  <SidebarNote
-                    key={s.id}
-                    summary={s}
-                    selected={s.id === selectedId && view === "memo"}
-                    onOpen={openMemo}
-                    onRename={handleRename}
-                  />
-                ))}
-            </ul>
+            <button className="side-sec-head" onClick={() => toggleSec("recent")}>
+              <span className={`side-caret${openSecs.recent ? " side-caret-open" : ""}`}>›</span>
+              Recent
+            </button>
+            {openSecs.recent && (
+              <ul className="note-list">
+                {live
+                  .filter((s) => !s.pinned)
+                  .map((s) => (
+                    <SidebarNote
+                      key={s.id}
+                      summary={s}
+                      selected={s.id === selectedId && view === "memo"}
+                      onOpen={openMemo}
+                      onRename={handleRename}
+                    />
+                  ))}
+              </ul>
+            )}
           </>
         )}
         <button className="account-row" onClick={() => setView("settings")}>
