@@ -36,6 +36,7 @@ import {
   renameNote,
   saveNote,
   updateAnnotation,
+  updateChunkText,
   updateNote,
   type NoteSummary,
 } from "./lib/notesDb";
@@ -173,6 +174,17 @@ export default function App() {
     await renameNote(id, title);
     setSummaries((prev) => prev.map((s) => (s.id === id ? { ...s, title } : s)));
     setNote((prev) => (prev && prev.id === id ? { ...prev, title } : prev));
+  }
+
+  /** Commit one corrected paragraph (M5.1). Text-only — timestamps/ids survive, and by
+   *  decision the analyses are left alone (⋯ Re-analyze is always available). Raw edits
+   *  change transcript.text, so refresh the feed summaries to update the note's snippet. */
+  async function handleEditChunk(mode: "raw" | "clean", chunkId: string, text: string) {
+    const target = note;
+    if (!target) return;
+    const patch = await updateChunkText(target.id, mode, chunkId, text);
+    setNote((prev) => (prev && prev.id === target.id ? { ...prev, ...patch } : prev));
+    if (patch.transcript) setSummaries(await listNotes());
   }
 
   /** Soft delete: stamp `deletedAt` so the note moves to Settings › Recently deleted.
@@ -578,7 +590,12 @@ export default function App() {
                   </div>
                 )}
 
-                <ReadingPane note={activeNote ?? note} />
+                <ReadingPane
+                  note={activeNote ?? note}
+                  // Combined view is read-only: its paragraphs are composed copies — edit
+                  // the source note itself.
+                  onEdit={combined ? undefined : (m, id, text) => void handleEditChunk(m, id, text)}
+                />
               </>
             )}
           </div>

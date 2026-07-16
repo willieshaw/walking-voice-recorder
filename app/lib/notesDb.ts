@@ -1,6 +1,6 @@
 // Local-first note storage in the browser (IndexedDB). Each note's audio blob + artifacts
 // live here; nothing is sent to a server. A small hand-rolled IDB wrapper (no dependency).
-import type { Annotation, Note } from "@core/types";
+import type { Annotation, FormattingLayers, Note, Transcript } from "@core/types";
 
 export interface NoteSummary {
   id: string;
@@ -180,6 +180,47 @@ export async function addSummaryVariant(
     stored.data = { ...stored.data, summaries: next };
   });
   return next;
+}
+
+/** Overwrite one paragraph's text — a Raw (transcript) or Clean (layers level-1) chunk —
+ *  in a single read-modify-write. A text-only change: ids and timestamps are untouched, so
+ *  seeking, the gutter, and annotation provenance survive. Raw edits regenerate
+ *  `transcript.text` from the paragraphs, so search and feed snippets see the correction.
+ *  Returns the updated artifact for the caller to mirror into UI state. */
+export async function updateChunkText(
+  noteId: string,
+  mode: "raw" | "clean",
+  chunkId: string,
+  text: string,
+): Promise<{ transcript?: Transcript; layers?: FormattingLayers }> {
+  let result: { transcript?: Transcript; layers?: FormattingLayers } = {};
+  await mutateNote(noteId, (stored) => {
+    if (mode === "raw") {
+      const t = stored.data.transcript;
+      if (!t) return;
+      const paragraphs = t.paragraphs.map((p) => (p.id === chunkId ? { ...p, text } : p));
+      const transcript: Transcript = {
+        ...t,
+        paragraphs,
+        text: paragraphs.map((p) => p.text).join("\n\n"),
+      };
+      stored.data = { ...stored.data, transcript };
+      result = { transcript };
+    } else {
+      const l = stored.data.layers;
+      if (!l) return;
+      const layers: FormattingLayers = {
+        levels: l.levels.map((lv) =>
+          lv.level === 1
+            ? { ...lv, chunks: lv.chunks.map((c) => (c.id === chunkId ? { ...c, text } : c)) }
+            : lv,
+        ),
+      };
+      stored.data = { ...stored.data, layers };
+      result = { layers };
+    }
+  });
+  return result;
 }
 
 /** How long a soft-deleted note lives in "Recently deleted" before it's purged. */

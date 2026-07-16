@@ -3,7 +3,11 @@
 // punctuation and paragraphs fixed, the same words otherwise). Both render through one
 // shared paragraph list so their styling stays identical. Extracted to-dos live only in
 // the Overview now, not inline here. (A "Formatted" reading was retired — see below.)
-import { useState } from "react";
+//
+// Paragraphs are correctable in place (M5.1): a pencil appears at the right of the hovered
+// paragraph; clicking it swaps the text for a textarea. Enter/blur commits, Esc cancels.
+// Text-only — timestamps and ids never change, so seeking and the gutter survive edits.
+import { useRef, useState } from "react";
 import type { Chunk, Note } from "@core/types";
 import { useFocus } from "@core/focus";
 import { formatTime } from "../components/AudioPlayer";
@@ -15,13 +19,48 @@ type Mode = "raw" | "clean";
 
 /** One shared, seekable list of timestamped paragraphs. Raw and Clean both use this, so
  *  the two readings are styled identically by construction. */
-function ReadingList({ items }: { items: Chunk[] }) {
+function ReadingList({
+  items,
+  onEdit,
+}: {
+  items: Chunk[];
+  /** Commit one paragraph's corrected text. Absent = read-only (e.g. combined view). */
+  onEdit?: (chunkId: string, text: string) => void;
+}) {
   const currentTime = useFocus((s) => s.currentTime);
   const seek = useFocus((s) => s.seek);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  // Set when the user cancels (Escape): the textarea's blur still fires on unmount, and
+  // this tells commit() to discard instead of applying the edited value.
+  const cancelEdit = useRef(false);
   // Headings are section titles (combined notes), not seekable body — skip them here.
   const activeId = items.find(
     (c) => c.kind !== "heading" && currentTime >= c.tStart && currentTime < c.tEnd,
   )?.id;
+
+  function startEdit(c: Chunk) {
+    cancelEdit.current = false;
+    setDraft(c.text);
+    setEditingId(c.id);
+  }
+
+  function commit(c: Chunk) {
+    setEditingId(null);
+    if (cancelEdit.current) {
+      cancelEdit.current = false;
+      return;
+    }
+    const text = draft.trim();
+    if (text && text !== c.text) onEdit?.(c.id, text);
+  }
+
+  /** Keep the textarea exactly as tall as its content. */
+  function autosize(el: HTMLTextAreaElement | null) {
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }
 
   if (items.length === 0) {
     return <p className="cr-empty">Nothing here yet for this note.</p>;
@@ -39,6 +78,35 @@ function ReadingList({ items }: { items: Chunk[] }) {
           >
             {c.text}
           </h3>
+        ) : c.id === editingId ? (
+          <p key={c.id} className="cr-para cr-editing" data-ts={formatTime(c.tStart)}>
+            <textarea
+              className="cr-edit-input"
+              autoFocus
+              value={draft}
+              ref={(el) => {
+                autosize(el);
+                // Put the caret at the end instead of selecting everything.
+                if (el && el.selectionStart === 0 && el.selectionEnd === el.value.length) {
+                  el.setSelectionRange(el.value.length, el.value.length);
+                }
+              }}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                autosize(e.target);
+              }}
+              onBlur={() => commit(c)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  commit(c);
+                } else if (e.key === "Escape") {
+                  cancelEdit.current = true;
+                  setEditingId(null);
+                }
+              }}
+            />
+          </p>
         ) : (
           <p
             key={c.id}
@@ -48,6 +116,20 @@ function ReadingList({ items }: { items: Chunk[] }) {
             title={`Jump to ${formatTime(c.tStart)}`}
           >
             {c.text}
+            {onEdit && (
+              <button
+                className="cr-edit-btn"
+                title="Edit paragraph"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startEdit(c);
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" />
+                </svg>
+              </button>
+            )}
           </p>
         ),
       )}
@@ -60,7 +142,15 @@ function cleanedChunks(note: Note): Chunk[] {
   return note.layers?.levels.find((l) => l.level === 1)?.chunks ?? [];
 }
 
-export function ReadingPane({ note }: { note: Note }) {
+export function ReadingPane({
+  note,
+  onEdit,
+}: {
+  note: Note;
+  /** Commit a corrected paragraph (mode tells which reading it belongs to). Absent =
+   *  read-only, e.g. the combined view — edit the source note instead. */
+  onEdit?: (mode: Mode, chunkId: string, text: string) => void;
+}) {
   const [mode, setMode] = useState<Mode>("raw");
   const [copied, flashCopied] = useCopyFlash();
   const hasClean = cleanedChunks(note).length > 0;
@@ -97,8 +187,12 @@ export function ReadingPane({ note }: { note: Note }) {
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <div className="rp-pane" key={mode}>
-        <ReadingList items={items} />
+      {/* Keyed by note + mode so switching either one resets any in-progress edit. */}
+      <div className="rp-pane" key={`${note.id}-${mode}`}>
+        <ReadingList
+          items={items}
+          onEdit={onEdit ? (chunkId, text) => onEdit(mode, chunkId, text) : undefined}
+        />
       </div>
     </div>
   );

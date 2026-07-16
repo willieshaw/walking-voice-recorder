@@ -39,6 +39,53 @@
   text-align: center;
   margin-top: 3rem;
 }
+/* The paragraph's hover affordance for in-place correction: a pencil just past the right
+ *  edge. It's a child of the paragraph, so hovering it keeps the paragraph's :hover alive. */
+.cr-edit-btn {
+  position: absolute;
+  left: 100%;
+  top: 0.15em;
+  margin-left: 6px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.cr-para:hover .cr-edit-btn {
+  opacity: 1;
+}
+.cr-edit-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+/* In-place editing: the textarea wears the paragraph's own type so nothing jumps. */
+.cr-editing {
+  cursor: default;
+  border-left-color: var(--accent);
+  background: var(--surface-active);
+}
+.cr-edit-input {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  font: inherit;
+  line-height: inherit;
+  color: inherit;
+}
 /* Source-section title in a combined note's transcript. Aligned to the paragraph text
  *  column (past the timestamp gutter), with a hairline above every section but the first. */
 .cr-section {
