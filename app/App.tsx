@@ -514,7 +514,9 @@ export default function App() {
         {view === "settings" ? (
           <SettingsPage
             trashed={trashed}
+            noteCount={summaries.length}
             onBack={goLibrary}
+            onRestored={() => void listNotes().then(setSummaries)}
             onRestore={(id) => void handleRestore(id)}
             onPurge={(id) => void handlePurge(id)}
             onEmpty={() => void handleEmptyTrash()}

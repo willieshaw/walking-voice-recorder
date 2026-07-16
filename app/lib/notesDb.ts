@@ -17,8 +17,9 @@ export interface NoteSummary {
   deletedAt?: number;
 }
 
-/** Stored shape: the note's data minus the ephemeral object-URL, plus the audio blob. */
-interface StoredNote {
+/** Stored shape: the note's data minus the ephemeral object-URL, plus the audio blob.
+ *  Exported for the backup archive, which round-trips exactly this shape. */
+export interface StoredNote {
   id: string;
   title: string;
   durationSec: number;
@@ -232,6 +233,31 @@ export async function updateChunkText(
     }
   });
   return result;
+}
+
+/** Every stored note, raw — the backup archive's source. Includes trashed notes, so a
+ *  restored library is byte-faithful (they come back still in the trash). */
+export async function dumpNotes(): Promise<StoredNote[]> {
+  return allByRecency();
+}
+
+/** Merge notes into the store by id. Existing ids are left untouched — restore never
+ *  overwrites what's already here, so re-importing an archive is a no-op. */
+export async function importNotes(
+  notes: StoredNote[],
+): Promise<{ added: number; skipped: number }> {
+  let added = 0;
+  let skipped = 0;
+  for (const n of notes) {
+    const exists = await tx<StoredNote | undefined>("readonly", (s) => s.get(n.id));
+    if (exists) {
+      skipped++;
+      continue;
+    }
+    await tx("readwrite", (s) => s.put(n));
+    added++;
+  }
+  return { added, skipped };
 }
 
 /** How long a soft-deleted note lives in "Recently deleted" before it's purged. */

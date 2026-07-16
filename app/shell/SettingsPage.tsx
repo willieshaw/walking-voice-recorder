@@ -1,8 +1,11 @@
-// The Settings view: workspace (coming soon), the BYOK OpenAI key panel, and the trash —
-// "Recently deleted" is just a filtered view over the same note summaries (deletedAt set),
-// with restore (clear the label) and purge (permanent) actions.
+// The Settings view: workspace (coming soon), the BYOK OpenAI key panel, backup (download/
+// restore the whole library as one archive), and the trash — "Recently deleted" is just a
+// filtered view over the same note summaries (deletedAt set), with restore (clear the
+// label) and purge (permanent) actions.
+import { useRef, useState } from "react";
 import { SettingsKeys } from "../components/SettingsKeys";
 import { formatTime } from "../components/AudioPlayer";
+import { buildBackup, restoreBackup } from "../lib/backup";
 import { TRASH_RETENTION_DAYS, type NoteSummary } from "../lib/notesDb";
 import "./settings-page.css";
 
@@ -23,19 +26,65 @@ function daysLeft(deletedAt: number): number {
 
 export function SettingsPage({
   trashed,
+  noteCount,
   onBack,
   onRestore,
   onPurge,
   onEmpty,
   onKeysSaved,
+  onRestored,
 }: {
   trashed: NoteSummary[];
+  /** Every note on this device, trash included — what a backup would contain. */
+  noteCount: number;
   onBack: () => void;
   onRestore: (id: string) => void;
   onPurge: (id: string) => void;
   onEmpty: () => void;
   onKeysSaved: () => void;
+  /** Called after an archive restore added notes, so the app can refresh its lists. */
+  onRestored: () => void;
 }) {
+  const [busy, setBusy] = useState<"export" | "restore" | null>(null);
+  const [backupStatus, setBackupStatus] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function downloadBackup() {
+    setBusy("export");
+    setBackupStatus(null);
+    try {
+      const { blob, count, filename } = await buildBackup();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setBackupStatus(`Saved ${count} note${count === 1 ? "" : "s"} to ${filename}.`);
+    } catch (e) {
+      setBackupStatus(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function restoreFromFile(file: File) {
+    setBusy("restore");
+    setBackupStatus(null);
+    try {
+      const { added, skipped } = await restoreBackup(file);
+      setBackupStatus(
+        `Restored ${added} note${added === 1 ? "" : "s"}` +
+          (skipped ? ` · ${skipped} already here` : "") +
+          ".",
+      );
+      if (added) onRestored();
+    } catch (e) {
+      setBackupStatus(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <div className="sp">
       <button className="back-btn" onClick={onBack}>
@@ -58,6 +107,51 @@ export function SettingsPage({
       </div>
 
       <SettingsKeys onSaved={onKeysSaved} />
+
+      <div className="sp-section-head">
+        <div>
+          <div className="sp-section-label">Backup</div>
+          <div className="sp-section-count">
+            {noteCount} note{noteCount === 1 ? "" : "s"} on this device
+          </div>
+        </div>
+      </div>
+      <div className="sp-card sp-backup">
+        <div className="sp-backup-main">
+          <div className="sp-backup-title">Download library</div>
+          <div className="sp-backup-sub">
+            One archive with every recording plus its transcript, analyses, and labels.
+            Notes live only in this browser — keep a copy somewhere safe. Restoring merges
+            by note and never overwrites what's already here.
+          </div>
+        </div>
+        <button
+          className="sp-backup-btn sp-backup-primary"
+          onClick={() => void downloadBackup()}
+          disabled={busy !== null || noteCount === 0}
+        >
+          {busy === "export" ? "Preparing…" : "Download"}
+        </button>
+        <button
+          className="sp-backup-btn"
+          onClick={() => fileRef.current?.click()}
+          disabled={busy !== null}
+        >
+          {busy === "restore" ? "Restoring…" : "Restore…"}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".zip,application/zip"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = ""; // allow picking the same file again
+            if (f) void restoreFromFile(f);
+          }}
+        />
+      </div>
+      {backupStatus && <p className="sp-backup-status">{backupStatus}</p>}
 
       <div className="sp-section-head">
         <div>
