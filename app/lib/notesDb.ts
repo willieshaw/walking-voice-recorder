@@ -1,6 +1,6 @@
 // Local-first note storage in the browser (IndexedDB). Each note's audio blob + artifacts
 // live here; nothing is sent to a server. A small hand-rolled IDB wrapper (no dependency).
-import type { Annotation, FormattingLayers, Note, Transcript } from "@core/types";
+import type { Annotation, Chunk, FormattingLayers, Note, Transcript } from "@core/types";
 
 export interface NoteSummary {
   id: string;
@@ -193,12 +193,21 @@ export async function updateChunkText(
   chunkId: string,
   text: string,
 ): Promise<{ transcript?: Transcript; layers?: FormattingLayers }> {
+  // The first edit stamps `originalText` (enabling per-paragraph Revert); an edit that lands
+  // back on the original clears the stamp — the chunk reads as never-edited again.
+  const apply = (c: Chunk): Chunk => {
+    if (c.id !== chunkId) return c;
+    const original = c.originalText ?? c.text;
+    const next: Chunk = { ...c, text, originalText: original };
+    if (text === original) delete next.originalText;
+    return next;
+  };
   let result: { transcript?: Transcript; layers?: FormattingLayers } = {};
   await mutateNote(noteId, (stored) => {
     if (mode === "raw") {
       const t = stored.data.transcript;
       if (!t) return;
-      const paragraphs = t.paragraphs.map((p) => (p.id === chunkId ? { ...p, text } : p));
+      const paragraphs = t.paragraphs.map(apply);
       const transcript: Transcript = {
         ...t,
         paragraphs,
@@ -211,9 +220,7 @@ export async function updateChunkText(
       if (!l) return;
       const layers: FormattingLayers = {
         levels: l.levels.map((lv) =>
-          lv.level === 1
-            ? { ...lv, chunks: lv.chunks.map((c) => (c.id === chunkId ? { ...c, text } : c)) }
-            : lv,
+          lv.level === 1 ? { ...lv, chunks: lv.chunks.map(apply) } : lv,
         ),
       };
       stored.data = { ...stored.data, layers };

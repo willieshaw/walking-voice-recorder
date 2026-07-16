@@ -26,6 +26,9 @@ export interface Chunk {
   tEnd: Seconds;
   /** Presentation hint for richer layers (outline). Defaults to "text". */
   kind?: "heading" | "text" | "bullet";
+  /** The text as originally produced (transcription/cleaning), stamped by the first user
+   *  edit. Presence = "this chunk was edited"; Revert restores it and clears the stamp. */
+  originalText?: string;
 }
 
 // ── TRUNK ─────────────────────────────────────────────────────────────────────

@@ -130,6 +130,21 @@ function ReadingList({
                 </svg>
               </button>
             )}
+            {onEdit && c.originalText !== undefined && (
+              <button
+                className="cr-edit-btn cr-revert-btn"
+                title="Undo all edits — revert to the original"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(c.id, c.originalText!);
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 7v6h6" />
+                  <path d="M21 17a9 9 0 0 0-15-6.7L3 13" />
+                </svg>
+              </button>
+            )}
           </p>
         ),
       )}

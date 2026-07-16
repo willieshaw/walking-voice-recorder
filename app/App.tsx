@@ -15,6 +15,14 @@ import { isCombined, resolveCombined, type Combined } from "@core/combine";
 
 /** The subset of an annotation a user can mutate (currently just a to-do's done state). */
 type AnnotationPatch = Partial<Pick<Annotation, "done">>;
+
+/** One committed paragraph edit on the ⌘Z stack: enough to put the old text back. */
+interface EditEntry {
+  noteId: string;
+  mode: "raw" | "clean";
+  chunkId: string;
+  text: string;
+}
 import { SearchModal } from "./shell/SearchModal";
 import { FoldersModal } from "./shell/FoldersModal";
 import { TagChips } from "./shell/TagChips";
@@ -71,6 +79,16 @@ export default function App() {
   // Object URLs minted for a combined note's source clips — revoked when the combination or
   // the open note changes, so stitched playback doesn't leak a blob URL per source.
   const combinedUrlsRef = useRef<string[]>([]);
+  // Session-only ⌘Z / ⇧⌘Z history of committed paragraph edits (the durable per-paragraph
+  // Revert lives on the chunk itself as `originalText`). Refs so the global key listener
+  // registered once always sees the live stacks; noteRef mirrors the open note for the same
+  // reason. Entries are tagged by noteId and only apply to the note that's open.
+  const undoStack = useRef<EditEntry[]>([]);
+  const redoStack = useRef<EditEntry[]>([]);
+  const noteRef = useRef<Note | null>(null);
+  noteRef.current = note;
+  const combinedRef = useRef(false);
+  combinedRef.current = !!combined;
 
   useEffect(() => {
     // Drop trashed notes whose 30-day window lapsed, then load the rest.
@@ -82,6 +100,15 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setSearchOpen((v) => !v);
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+        // ⌘Z / ⇧⌘Z: undo/redo committed paragraph edits on the open note. Inside an input
+        // or textarea the browser's native undo should win — don't intercept.
+        const t = e.target as HTMLElement | null;
+        if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+        if (!noteRef.current || combinedRef.current) return;
+        e.preventDefault();
+        if (e.shiftKey) void stepHistory(redoStack.current, undoStack.current);
+        else void stepHistory(undoStack.current, redoStack.current);
       } else if (e.key === "Escape") {
         setSearchOpen(false);
         setFoldersOpen(false);
@@ -176,15 +203,46 @@ export default function App() {
     setNote((prev) => (prev && prev.id === id ? { ...prev, title } : prev));
   }
 
+  /** A chunk's current text on the loaded note — history bookkeeping for undo/redo. */
+  function chunkTextOf(n: Note, mode: "raw" | "clean", chunkId: string): string | undefined {
+    const list =
+      mode === "raw"
+        ? n.transcript?.paragraphs
+        : n.layers?.levels.find((l) => l.level === 1)?.chunks;
+    return list?.find((c) => c.id === chunkId)?.text;
+  }
+
+  /** Write one paragraph's text and mirror it into state (shared by edit, undo, redo). */
+  async function applyEdit(target: Note, mode: "raw" | "clean", chunkId: string, text: string) {
+    const patch = await updateChunkText(target.id, mode, chunkId, text);
+    setNote((prev) => (prev && prev.id === target.id ? { ...prev, ...patch } : prev));
+    if (patch.transcript) setSummaries(await listNotes()); // feed snippet may have changed
+  }
+
   /** Commit one corrected paragraph (M5.1). Text-only — timestamps/ids survive, and by
-   *  decision the analyses are left alone (⋯ Re-analyze is always available). Raw edits
-   *  change transcript.text, so refresh the feed summaries to update the note's snippet. */
+   *  decision the analyses are left alone (⋯ Re-analyze is always available). Every commit
+   *  (including per-paragraph Revert) lands on the ⌘Z stack. */
   async function handleEditChunk(mode: "raw" | "clean", chunkId: string, text: string) {
     const target = note;
     if (!target) return;
-    const patch = await updateChunkText(target.id, mode, chunkId, text);
-    setNote((prev) => (prev && prev.id === target.id ? { ...prev, ...patch } : prev));
-    if (patch.transcript) setSummaries(await listNotes());
+    const prev = chunkTextOf(target, mode, chunkId);
+    if (prev === undefined || prev === text) return;
+    undoStack.current.push({ noteId: target.id, mode, chunkId, text: prev });
+    redoStack.current = [];
+    await applyEdit(target, mode, chunkId, text);
+  }
+
+  /** Pop the most recent edit for the OPEN note off `from`, stash the inverse on `to`,
+   *  and re-apply the stored text. Powers both ⌘Z (undo) and ⇧⌘Z (redo). */
+  async function stepHistory(from: EditEntry[], to: EditEntry[]) {
+    const target = noteRef.current;
+    if (!target) return;
+    const i = from.map((e) => e.noteId).lastIndexOf(target.id);
+    if (i < 0) return;
+    const [entry] = from.splice(i, 1);
+    const current = chunkTextOf(target, entry.mode, entry.chunkId);
+    if (current !== undefined) to.push({ ...entry, text: current });
+    await applyEdit(target, entry.mode, entry.chunkId, entry.text);
   }
 
   /** Soft delete: stamp `deletedAt` so the note moves to Settings › Recently deleted.

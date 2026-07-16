@@ -66,6 +66,10 @@
   color: var(--accent);
   border-color: var(--accent);
 }
+/* Revert (edited paragraphs only) sits just right of the pencil. */
+.cr-revert-btn {
+  margin-left: 38px;
+}
 /* In-place editing: the textarea wears the paragraph's own type so nothing jumps. */
 .cr-editing {
   cursor: default;
