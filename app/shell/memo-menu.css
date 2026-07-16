@@ -49,8 +49,14 @@
   text-align: left;
   cursor: pointer;
 }
-.mm-item:hover {
+.mm-item:hover:not(:disabled) {
   background: rgba(0, 0, 0, 0.045);
+}
+.mm-item:disabled,
+.mm-item:disabled svg {
+  color: var(--muted);
+  opacity: 0.55;
+  cursor: default;
 }
 .mm-item svg {
   flex: none;

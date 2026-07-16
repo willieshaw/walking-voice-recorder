@@ -8,6 +8,8 @@ export function MemoMenu({
   folders,
   currentFolder,
   combined = false,
+  canReanalyze,
+  onReanalyze,
   onCombine,
   onMove,
   onDelete,
@@ -16,6 +18,9 @@ export function MemoMenu({
   currentFolder?: string;
   /** True when this note already has a combination — flips the label to "Edit combination…". */
   combined?: boolean;
+  /** False when the note is already on the latest prompts — Re-analyze stays listed, greyed. */
+  canReanalyze: boolean;
+  onReanalyze: () => void;
   onCombine: () => void;
   onMove: (folder: string | undefined) => void;
   onDelete: () => void;
@@ -78,6 +83,22 @@ export function MemoMenu({
                   <path d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
                 {combined ? "Edit combination…" : "Combine notes…"}
+              </button>
+              <button
+                className="mm-item"
+                role="menuitem"
+                disabled={!canReanalyze}
+                title={canReanalyze ? undefined : "Analysis is up to date"}
+                onClick={() => {
+                  close();
+                  onReanalyze();
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                  <path d="M21 3v6h-6" />
+                </svg>
+                Re-analyze
               </button>
               <button className="mm-item" role="menuitem" onClick={() => setPicking(true)}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">

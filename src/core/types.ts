@@ -166,6 +166,10 @@ export interface Note {
    *  Compared against the current processor versions to offer prompt upgrades; a missing
    *  entry reads as version 0 (stale). See processors/analysis.ts. */
   artifactVersions?: Partial<Record<ArtifactKind, number>>;
+  /** Snapshot of the current processor versions taken when the user closed the upgrade
+   *  banner. The banner stays hidden until some version moves past this stamp — a later
+   *  prompt bump automatically un-dismisses it. (Re-analyze in the ⋯ menu is always there.) */
+  upgradeDismissed?: Partial<Record<ArtifactKind, number>>;
 }
 
 /** The manifest written by the CLI so the app knows which artifacts a note has. */

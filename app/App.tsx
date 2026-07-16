@@ -26,7 +26,7 @@ import {
   buildLayers,
   buildSummary,
 } from "./lib/providers/openaiLlm";
-import { CURRENT_ANALYSIS, staleAnalyses } from "@engine/processors/analysis";
+import { CURRENT_ANALYSIS, staleAnalyses, unseenStaleAnalyses } from "@engine/processors/analysis";
 import {
   addSummaryVariant,
   getNote,
@@ -211,9 +211,25 @@ export default function App() {
 
   // A note needs an upgrade when any analysis is missing OR was built with an older prompt
   // (each processor's `version` is stamped onto the note at build time and compared here —
-  // bumping a version resurfaces this banner on every previously-processed note).
+  // bumping a version resurfaces the offer on every previously-processed note).
+  // `needsUpgrade` drives the ⋯ menu's Re-analyze (always listed, greyed when current);
+  // the banner additionally honors the user's dismissal, but stays up while upgrading so a
+  // menu-triggered re-analysis has visible progress.
   const staleKinds = note?.transcript ? staleAnalyses(note) : [];
   const needsUpgrade = staleKinds.length > 0;
+  const showUpgradeBanner =
+    (note?.transcript && unseenStaleAnalyses(note).length > 0) || upgrading || !!upgradeError;
+
+  /** Close the upgrade banner: remember the versions it was offering, so it only returns
+   *  when a future prompt bump moves past them. */
+  async function dismissUpgrade() {
+    const target = note;
+    if (!target) return;
+    const upgradeDismissed = { ...CURRENT_ANALYSIS };
+    setUpgradeError(null);
+    await updateNote(target.id, { upgradeDismissed });
+    setNote((prev) => (prev && prev.id === target.id ? { ...prev, upgradeDismissed } : prev));
+  }
 
   async function handleUpgrade() {
     const target = note;
@@ -452,6 +468,8 @@ export default function App() {
                   folders={folders}
                   currentFolder={note.folder}
                   combined={isCombined(note)}
+                  canReanalyze={needsUpgrade && !upgrading && keysReady}
+                  onReanalyze={() => void handleUpgrade()}
                   onCombine={() => setCombineOpen(true)}
                   onMove={(folder) => {
                     if (folder) rememberFolder(folder);
@@ -534,7 +552,7 @@ export default function App() {
                   onEnsureSummaryVariant={ensureSummaryVariant}
                 />
 
-                {needsUpgrade && !combined && (
+                {showUpgradeBanner && !combined && (
                   <div className="upgrade-banner">
                     <span>
                       This note was analyzed with older prompts. Upgrade re-runs the latest
@@ -544,11 +562,19 @@ export default function App() {
                     <button
                       className="ghost-btn"
                       onClick={handleUpgrade}
-                      disabled={upgrading || !keysReady}
+                      disabled={upgrading || !keysReady || !needsUpgrade}
                     >
                       {upgrading ? "Upgrading…" : "Upgrade note"}
                     </button>
                     {upgradeError && <span className="error">{upgradeError}</span>}
+                    <button
+                      className="upgrade-close"
+                      title="Dismiss (Re-analyze stays in the ⋯ menu)"
+                      onClick={() => void dismissUpgrade()}
+                      disabled={upgrading}
+                    >
+                      ×
+                    </button>
                   </div>
                 )}
 

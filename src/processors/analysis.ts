@@ -48,3 +48,19 @@ export function staleAnalyses(
       !has(note, kind) || (note.artifactVersions?.[kind] ?? 0) < CURRENT_ANALYSIS[kind],
   );
 }
+
+/**
+ * The stale analyses the user hasn't dismissed the banner for. Closing the banner stamps
+ * `upgradeDismissed` with the then-current versions, so those exact stalenesses stay quiet;
+ * a later prompt bump moves CURRENT_ANALYSIS past the stamp and the banner returns.
+ */
+export function unseenStaleAnalyses(
+  note: Pick<
+    Note,
+    "layers" | "keymoments" | "summary" | "annotations" | "artifactVersions" | "upgradeDismissed"
+  >,
+): AnalysisKind[] {
+  return staleAnalyses(note).filter(
+    (kind) => (note.upgradeDismissed?.[kind] ?? 0) < CURRENT_ANALYSIS[kind],
+  );
+}
