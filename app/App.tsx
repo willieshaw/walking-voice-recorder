@@ -335,6 +335,8 @@ export default function App() {
       };
       await updateNote(target.id, patch);
       setNote((prev) => (prev && prev.id === target.id ? { ...prev, ...patch } : prev));
+      // The feed preview derives from the summary — refresh it if we rebuilt one.
+      if (stale.includes("summary")) setSummaries(await listNotes());
     } catch (e) {
       setUpgradeError(e instanceof Error ? e.message : String(e));
     } finally {

@@ -16,7 +16,7 @@ export const summaryLlmRequest = summaryRequest();
 export const summaryProcessor: Processor<"summary"> = {
   id: "summary",
   reads: ["transcript"],
-  version: 1,
+  version: 2, // v2: third-person variants, no person labels (2026-07-16 user feedback)
   async produce(ctx: Ctx): Promise<string> {
     const transcript = await ctx.getArtifact("transcript");
     if (!transcript) throw new Error("summary requires a transcript artifact.");

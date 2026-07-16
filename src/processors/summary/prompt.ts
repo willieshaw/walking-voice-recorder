@@ -1,9 +1,11 @@
 // The summary prompt + schema: distill the recording into a short digest.
 //
-// We keep FIVE lean prompt variants, each a different tactic for the same goal — a summary
-// that sounds like the speaker and reuses their words, not a generic book report. The app
-// exposes them behind a toggle so we can compare with real users. Variant 0 is the default
-// (generated on upload); the rest are generated lazily when a user toggles to them.
+// We keep FIVE lean prompt variants behind the numbered toggle. This generation (v2) was
+// redesigned from user feedback (2026-07-16): testers preferred Otter's summaries — third
+// person, concrete named details, scannable, neutral — over our first-person voice-
+// preserving ones. All five are third person; each isolates one hypothesis about what made
+// the preferred style work. Variant 0 is the default (generated on upload); the rest are
+// generated lazily when a user toggles to them.
 // Bump the summary processor's `version` whenever a variant changes.
 import type { Chunk } from "../../core/types.js";
 
@@ -33,83 +35,80 @@ function numbered(paragraphs: Chunk[]): string {
   return paragraphs.map((p) => `[${p.id}] ${p.text}`).join("\n\n");
 }
 
+/** Rules every variant shares, distilled from the user feedback:
+ *  third person without labeling the person; concrete substance; calm framing;
+ *  don't duplicate the to-do extractor. */
+const SHARED_RULES = `- Third person, but never label the person — no "the speaker", "the user", a name, or any tag. Use bare "they" (the reader knows exactly who recorded this), or lead with the topic itself: "A pitch for a three-part series — they want…" not "The speaker is pitching…".
+- Name the concrete things mentioned (titles, people, places, projects) instead of describing the thinking abstractly — the summary should help find this note again months later.
+- If they voiced doubts, report them neutrally in at most one clause; don't dwell or dramatize.
+- No task lists or next steps — to-dos are extracted separately.
+- Only what they actually said; no advice, no invented content. Return ONLY the JSON object.`;
+
 export const summaryVariants: SummaryVariant[] = [
   {
-    // Baseline — the original prompt, kept as the comparison point.
-    id: "baseline",
-    system: `You distill a person's spoken brainstorming recording into a short written digest. You capture what THEY were working through, in a register close to their own — never a generic book-report tone, never content they didn't say.`,
-    buildPrompt: (paragraphs) => `Here is a transcript of a spoken brainstorming walk, split into paragraphs.
+    // Reporter (default) — balanced third-person report: what they're working on, then the substance.
+    id: "reporter",
+    system: `You summarize one person's spoken brainstorming as a short third-person report — concrete, neutral, and useful for finding the note again later.`,
+    buildPrompt: (paragraphs) => `Here is a transcript of a spoken brainstorming recording, split into paragraphs.
 
 ${numbered(paragraphs)}
 
-Write a 2–3 sentence summary of the recording. Return a JSON object { "summary": "..." }.
+Write a 2–4 sentence summary. Return a JSON object { "summary": "..." }.
 
-- Lead with what the recording is about, then the key decisions or ideas reached.
-- Stay close to the speaker's own vocabulary and intent; do not add advice or content.
-- Plain prose, no bullet points, no "The speaker..." framing — write it like a note to themselves.
-
-Return ONLY the JSON object.`,
+- Lead with what they're working on, then the key specifics and any decisions reached.
+${SHARED_RULES}`,
   },
   {
-    // Their words — reuse the speaker's exact phrases, no synonyms.
-    id: "their-words",
-    system: `You summarize a spoken recording using the speaker's OWN words. You lift their exact phrases and never swap in fancier synonyms.`,
-    buildPrompt: (paragraphs) => `Here is a transcript of a spoken brainstorming walk, split into paragraphs.
+    // Contents — the scannable enumerated middle (a mini table of contents).
+    id: "contents",
+    system: `You summarize one person's spoken brainstorming as a short third-person report whose core is one scannable enumeration of the main parts.`,
+    buildPrompt: (paragraphs) => `Here is a transcript of a spoken brainstorming recording, split into paragraphs.
 
 ${numbered(paragraphs)}
 
-Write a 2–3 sentence summary that reuses the speaker's own words and phrases wherever you can. Return a JSON object { "summary": "..." }.
+Write a 2–4 sentence summary. Return a JSON object { "summary": "..." }.
 
-- Lift the speaker's exact wording rather than paraphrasing; keep their nouns and verbs.
-- Do not introduce vocabulary they didn't use. No advice, no added content.
-- No "The speaker..." framing.
-
-Return ONLY the JSON object.`,
+- One sentence of setup, then a single enumerating sentence that walks the main parts with a colon and parallel clauses ("…: X does this, Y does that, Z does the other"), then one wrap-up sentence if needed.
+${SHARED_RULES}`,
   },
   {
-    // First person — written as the speaker's own note to self.
-    id: "first-person",
-    system: `You rewrite a person's spoken brainstorming into a short note they could have written to themselves — first person, in their own voice.`,
-    buildPrompt: (paragraphs) => `Here is a transcript of a spoken brainstorming walk, split into paragraphs.
+    // Topic-first — subjectless and compact; opens on a noun phrase, not a person.
+    id: "topic-first",
+    system: `You distill one person's spoken brainstorming into the most compact useful description of its subject matter.`,
+    buildPrompt: (paragraphs) => `Here is a transcript of a spoken brainstorming recording, split into paragraphs.
 
 ${numbered(paragraphs)}
 
-Write a 2–3 sentence summary in the FIRST PERSON, as if the speaker jotted it to themselves ("I keep coming back to…"). Return a JSON object { "summary": "..." }.
+Write a 2–3 sentence summary. Return a JSON object { "summary": "..." }.
 
-- First person throughout; their vocabulary and tone.
-- Only what they actually said; no advice, no invented content.
-
-Return ONLY the JSON object.`,
+- Open with a noun phrase naming the subject ("A pitch for…", "Chapter ideas for…"), then compact sentences of specifics.
+${SHARED_RULES}`,
   },
   {
-    // Echo — mirror the speaker's register, rhythm, and idiom.
-    id: "echo",
-    system: `You mirror how a person talks. You capture what they worked through in their own register, rhythm, and idiom — not smoothed into neutral prose.`,
-    buildPrompt: (paragraphs) => `Here is a transcript of a spoken brainstorming walk, split into paragraphs.
+    // Arc — stance, substance, resolution: opens on intent, enumerates, closes on where they landed.
+    id: "arc",
+    system: `You summarize one person's spoken brainstorming as a short third-person report with a clear arc: intent, substance, resolution.`,
+    buildPrompt: (paragraphs) => `Here is a transcript of a spoken brainstorming recording, split into paragraphs.
 
 ${numbered(paragraphs)}
 
-Write a 2–3 sentence summary that SOUNDS LIKE the speaker — match their register, rhythm, and idiom, and keep their characteristic phrases. Return a JSON object { "summary": "..." }.
+Write a 3–5 sentence summary. Return a JSON object { "summary": "..." }.
 
-- Sound like them, not like a report; keep their idioms and asides.
-- Only what they said; no added content.
-
-Return ONLY the JSON object.`,
+- Three beats: one sentence on what they're doing and why; one or two enumerating the substance; one closing sentence on where they landed (a decision, an acknowledged risk they're proceeding past, or the open question they ended on).
+${SHARED_RULES}`,
   },
   {
-    // Lean — the tersest version, the speaker's key phrases only.
-    id: "lean",
-    system: `You compress a person's spoken brainstorming to its essence using their own key phrases and as few words as possible.`,
-    buildPrompt: (paragraphs) => `Here is a transcript of a spoken brainstorming walk, split into paragraphs.
+    // Their words, third person — observer stance but built from their exact vocabulary.
+    id: "their-words-3p",
+    system: `You summarize one person's spoken brainstorming in the third person while reusing their OWN words — their nouns and verbs, no fancier synonyms.`,
+    buildPrompt: (paragraphs) => `Here is a transcript of a spoken brainstorming recording, split into paragraphs.
 
 ${numbered(paragraphs)}
 
-Write the LEANEST possible summary — 1–2 tight sentences built from the speaker's own key phrases, with minimal connective words. Return a JSON object { "summary": "..." }.
+Write a 2–4 sentence summary. Return a JSON object { "summary": "..." }.
 
-- As short as possible; keep only their essential phrases.
-- No filler, no framing, no added content.
-
-Return ONLY the JSON object.`,
+- Build the sentences from the speaker's exact phrases and vocabulary wherever possible; do not introduce words they didn't use (beyond connectives).
+${SHARED_RULES}`,
   },
 ];
 
