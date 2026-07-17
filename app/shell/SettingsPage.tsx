@@ -127,8 +127,7 @@ export function SettingsPage({
       </div>
       <div className="sp-card sp-dictionary">
         <p className="sp-dictionary-sub">
-          Names and terms the transcriber should get right — applied to new recordings
-          only. Add them here, or highlight a word in any transcript.
+          Your vocabulary. Applies to new transcriptions only.
         </p>
         <TagChips
           tags={terms}
