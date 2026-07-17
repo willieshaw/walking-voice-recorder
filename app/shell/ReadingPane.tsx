@@ -129,7 +129,7 @@ function ReadingList({
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => seek(c.tStart, { activeChunkId: c.id })}
             >
-              {formatTime(c.tStart)}
+              <span className="cr-ts-num">{formatTime(c.tStart)}</span>
             </button>
             <textarea
               className="cr-edit-input"
@@ -184,7 +184,7 @@ function ReadingList({
                 seek(c.tStart, { activeChunkId: c.id });
               }}
             >
-              {formatTime(c.tStart)}
+              <span className="cr-ts-num">{formatTime(c.tStart)}</span>
             </button>
             {c.text}
             {onEdit && c.originalText !== undefined && (

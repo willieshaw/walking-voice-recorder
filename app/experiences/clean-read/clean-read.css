@@ -19,32 +19,44 @@
 .cr-editable {
   cursor: text;
 }
-.cr-para:hover {
+/* The whole-paragraph tint is reserved for hovering the timestamp — a preview of what
+ *  "play from here" scopes. Hovering the text (which is for editing) never tints it. */
+.cr-para:has(.cr-ts:hover) {
   background: var(--surface-hover);
 }
 .cr-active {
   border-left-color: var(--accent);
   background: var(--surface-active);
 }
-/* The gutter timestamp is the paragraph's play button. Excluded from selection/copy —
- *  grabbing a phrase for the dictionary must never pick up a "0:42". */
+/* The gutter timestamp is the paragraph's play button. Its hitbox fills the full-height
+ *  left gutter, so a click anywhere down that column plays from here; the number itself
+ *  rides at the top. Excluded from selection/copy — grabbing a phrase for the dictionary
+ *  must never pick up a "0:42". */
 .cr-ts {
   position: absolute;
-  left: 0.7em;
-  top: 0.3em;
-  width: 3.2em;
-  text-align: left;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  font: inherit; /* buttons don't inherit font — force the 17px reading size so the em math holds */
+  width: 4.4em; /* == .cr-para padding-left: the hitbox exactly fills the timestamp gutter */
+  /* Full-height hitbox, but the number rides at the top aligned to the first line (a
+   *  button vertically centers its content by default — flex-start overrides that). */
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 0.5em 0 0 0.7em;
+  background: none;
+  border: none;
+  cursor: pointer;
+  user-select: none;
+}
+.cr-ts-num {
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-variant-numeric: tabular-nums;
   font-size: 0.72rem;
   color: var(--muted);
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  user-select: none;
 }
-.cr-ts:hover {
+.cr-ts:hover .cr-ts-num {
   color: var(--accent);
 }
 .cr-empty {
@@ -82,11 +94,11 @@
 .cr-revert-btn {
   margin-left: 6px;
 }
-/* In-place editing: the textarea wears the paragraph's own type so nothing jumps. */
+/* In-place editing: the textarea wears the paragraph's own type so nothing jumps. No
+ *  whole-paragraph tint — just the accent edge marking which paragraph is being edited. */
 .cr-editing {
   cursor: default;
   border-left-color: var(--accent);
-  background: var(--surface-active);
 }
 .cr-edit-input {
   display: block;
