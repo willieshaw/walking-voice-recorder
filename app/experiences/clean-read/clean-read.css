@@ -11,8 +11,13 @@
   padding: 0.15em 0.4em 0.15em 4.4em;
   border-left: 3px solid transparent;
   border-radius: 4px;
-  cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease;
+}
+/* The transcript reads as a document you own: clicking the text opens the editor, so
+ *  editable paragraphs advertise it with a text caret. Playing is the deliberate act —
+ *  the gutter timestamp (.cr-ts) is the play control. */
+.cr-editable {
+  cursor: text;
 }
 .cr-para:hover {
   background: var(--surface-hover);
@@ -21,8 +26,29 @@
   border-left-color: var(--accent);
   background: var(--surface-active);
 }
-/* Timestamp gutter. Rendered as generated content so it's never part of a text
- *  selection or copy — the number lives in the CSS layer, not the DOM text. */
+/* The gutter timestamp is the paragraph's play button. Excluded from selection/copy —
+ *  grabbing a phrase for the dictionary must never pick up a "0:42". */
+.cr-ts {
+  position: absolute;
+  left: 0.7em;
+  top: 0.3em;
+  width: 3.2em;
+  text-align: left;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  color: var(--muted);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  user-select: none;
+}
+.cr-ts:hover {
+  color: var(--accent);
+}
+/* While editing there's no play button — the timestamp shows as plain generated content
+ *  (the number lives in the CSS layer, outside the textarea's text). */
 .cr-para::before {
   content: attr(data-ts);
   position: absolute;
@@ -39,8 +65,8 @@
   text-align: center;
   margin-top: 3rem;
 }
-/* The paragraph's hover affordance for in-place correction: a pencil just past the right
- *  edge. It's a child of the paragraph, so hovering it keeps the paragraph's :hover alive. */
+/* Revert (edited paragraphs only): a hover affordance just past the paragraph's right
+ *  edge. A child of the paragraph, so hovering it keeps the paragraph's :hover alive. */
 .cr-edit-btn {
   position: absolute;
   left: 100%;
@@ -66,9 +92,8 @@
   color: var(--accent);
   border-color: var(--accent);
 }
-/* Revert (edited paragraphs only) sits just right of the pencil. */
 .cr-revert-btn {
-  margin-left: 38px;
+  margin-left: 6px;
 }
 /* In-place editing: the textarea wears the paragraph's own type so nothing jumps. */
 .cr-editing {
