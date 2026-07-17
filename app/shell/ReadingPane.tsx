@@ -18,13 +18,37 @@ import "./reading-pane.css";
 
 type Mode = "raw" | "clean";
 
+/* ══ EXPERIMENT: transcript interaction variants ═══════════════════════════════════════
+ * Four ways to split the paragraph between "play from here" and "edit this". Pick one
+ * from the dropdown next to Raw/Clean, then delete the rest: this block, the `variant`
+ * branches inside ReadingList, the switcher in ReadingPane, and the EXPERIMENT block in
+ * reading-pane.css. */
+type Variant = "current" | "inverted" | "deliberate" | "toolbar";
+
+const VARIANTS: { id: Variant; label: string }[] = [
+  { id: "current", label: "1 · Click plays (current)" },
+  { id: "inverted", label: "2 · Click edits, time plays" },
+  { id: "deliberate", label: "3 · Double-click edits" },
+  { id: "toolbar", label: "4 · Hover toolbar" },
+];
+
+const VARIANT_KEY = "wvr.readingVariant";
+
+function storedVariant(): Variant {
+  const v = localStorage.getItem(VARIANT_KEY);
+  return VARIANTS.some((x) => x.id === v) ? (v as Variant) : "current";
+}
+/* ══ end EXPERIMENT block ═════════════════════════════════════════════════════════════ */
+
 /** One shared, seekable list of timestamped paragraphs. Raw and Clean both use this, so
  *  the two readings are styled identically by construction. */
 function ReadingList({
   items,
+  variant,
   onEdit,
 }: {
   items: Chunk[];
+  variant: Variant;
   /** Commit one paragraph's corrected text. Absent = read-only (e.g. combined view). */
   onEdit?: (chunkId: string, text: string) => void;
 }) {
@@ -67,8 +91,34 @@ function ReadingList({
     return <p className="cr-empty">Nothing here yet for this note.</p>;
   }
 
+  /* EXPERIMENT: per-variant handlers. A click that ends a text selection is neither a
+   * seek nor an edit — the reader is grabbing words (e.g. for the dictionary). */
+  function selecting(): boolean {
+    return !(document.getSelection()?.isCollapsed ?? true);
+  }
+  function paraClick(c: Chunk) {
+    if (selecting()) return;
+    if (variant === "current") seek(c.tStart, { activeChunkId: c.id });
+    else if (variant === "inverted" && onEdit) startEdit(c);
+  }
+  function paraDoubleClick(c: Chunk) {
+    if (variant === "deliberate" && onEdit && !selecting()) startEdit(c);
+  }
+  function paraTitle(c: Chunk): string | undefined {
+    if (variant === "current") return `Jump to ${formatTime(c.tStart)}`;
+    if (!onEdit) return undefined;
+    if (variant === "inverted") return "Click to edit";
+    if (variant === "deliberate") return "Double-click to edit";
+    return undefined;
+  }
+  // Which variants keep the hover pencil at the right edge (toolbar has its own ✎;
+  // inverted edits on click, so a pencil would be redundant).
+  const sidePencil = variant === "current" || variant === "deliberate";
+  // A real timestamp button replaces the CSS-generated gutter label where time = play.
+  const tsPlays = variant === "inverted" || variant === "deliberate";
+
   return (
-    <article className="cr-read">
+    <article className={`cr-read crv-${variant}`}>
       {items.map((c) =>
         c.kind === "heading" ? (
           <h3
@@ -112,12 +162,55 @@ function ReadingList({
           <p
             key={c.id}
             className={`cr-para${c.id === activeId ? " cr-active" : ""}`}
-            data-ts={formatTime(c.tStart)}
-            onClick={() => seek(c.tStart, { activeChunkId: c.id })}
-            title={`Jump to ${formatTime(c.tStart)}`}
+            data-ts={tsPlays ? undefined : formatTime(c.tStart)}
+            onClick={() => paraClick(c)}
+            onDoubleClick={() => paraDoubleClick(c)}
+            title={paraTitle(c)}
           >
+            {tsPlays && (
+              <button
+                className="cr-ts"
+                title={`Play from ${formatTime(c.tStart)}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  seek(c.tStart, { activeChunkId: c.id });
+                }}
+              >
+                {formatTime(c.tStart)}
+              </button>
+            )}
             {c.text}
-            {onEdit && (
+            {variant === "toolbar" && (
+              <span className="cr-tools">
+                <button
+                  className="cr-tool"
+                  title={`Play from ${formatTime(c.tStart)}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    seek(c.tStart, { activeChunkId: c.id });
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7 4.5v15l13-7.5z" />
+                  </svg>
+                </button>
+                {onEdit && (
+                  <button
+                    className="cr-tool"
+                    title="Edit paragraph"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startEdit(c);
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" />
+                    </svg>
+                  </button>
+                )}
+              </span>
+            )}
+            {onEdit && sidePencil && (
               <button
                 className="cr-edit-btn"
                 title="Edit paragraph"
@@ -133,7 +226,7 @@ function ReadingList({
             )}
             {onEdit && c.originalText !== undefined && (
               <button
-                className="cr-edit-btn cr-revert-btn"
+                className={`cr-edit-btn cr-revert-btn${sidePencil ? "" : " cr-revert-solo"}`}
                 title="Undo all edits — revert to the original"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -172,6 +265,12 @@ export function ReadingPane({
   const hasClean = cleanedChunks(note).length > 0;
   // Highlighting a word or short phrase anywhere in the pane offers "Add to dictionary".
   const paneRef = useRef<HTMLDivElement>(null);
+  // EXPERIMENT: which interaction paradigm the transcript uses (see VARIANTS above).
+  const [variant, setVariant] = useState<Variant>(storedVariant);
+  function switchVariant(v: Variant) {
+    setVariant(v);
+    localStorage.setItem(VARIANT_KEY, v);
+  }
 
   const items: Chunk[] =
     mode === "clean" ? cleanedChunks(note) : (note.transcript?.paragraphs ?? []);
@@ -199,6 +298,19 @@ export function ReadingPane({
           {hasClean && pill("clean", "Clean")}
           {/* "Formatted" (the layers grouped reading) is deprecated and hidden for now. */}
         </div>
+        {/* EXPERIMENT: interaction-variant switcher — delete with the block above. */}
+        <select
+          className="rp-variant"
+          title="Transcript interaction experiment"
+          value={variant}
+          onChange={(e) => switchVariant(e.target.value as Variant)}
+        >
+          {VARIANTS.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.label}
+            </option>
+          ))}
+        </select>
         <button
           className="rp-copy"
           onClick={() => flashCopied(() => navigator.clipboard.writeText(currentText()))}
@@ -210,6 +322,7 @@ export function ReadingPane({
       <div className="rp-pane" key={`${note.id}-${mode}`}>
         <ReadingList
           items={items}
+          variant={variant}
           onEdit={onEdit ? (chunkId, text) => onEdit(mode, chunkId, text) : undefined}
         />
       </div>
