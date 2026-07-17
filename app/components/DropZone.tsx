@@ -3,13 +3,33 @@ import "./drop-zone.css";
 
 type Status = { kind: "idle" } | { kind: "working"; name: string } | { kind: "error"; msg: string };
 
-/** Drop (or pick) an audio file to transcribe it into a new note. */
+function UploadIcon({ error = false }: { error?: boolean }) {
+  return (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={error ? "#b3261e" : "currentColor"}
+      strokeWidth="1.7"
+    >
+      <path d="M12 15V4" />
+      <path d="M7.5 8.5L12 4l4.5 4.5" />
+      <path d="M4 15v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
+    </svg>
+  );
+}
+
+/** Drop (or pick) an audio file to transcribe it into a new note. With `compact`, the same
+ *  behavior renders as an icon-sized dashed square (the collapsed sidebar's rail). */
 export function DropZone({
   onUpload,
   disabled = false,
+  compact = false,
 }: {
   onUpload: (file: File) => Promise<void>;
   disabled?: boolean;
+  compact?: boolean;
 }) {
   const [over, setOver] = useState(false);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
@@ -30,9 +50,51 @@ export function DropZone({
   const blocked = disabled || working;
 
   if (disabled && status.kind === "idle") {
-    return (
+    return compact ? (
+      <div className="dz dz-compact dz-disabled" title="Add your API keys to record">
+        <UploadIcon />
+      </div>
+    ) : (
       <div className="dz dz-disabled">
         <span className="dz-msg">Add your API keys to record.</span>
+      </div>
+    );
+  }
+
+  // The rail skin: the dashed square + upload glyph, all states told through the icon.
+  if (compact) {
+    return (
+      <div
+        className={`dz dz-compact${over ? " dz-over" : ""}${working ? " dz-working" : ""}`}
+        title={
+          status.kind === "working"
+            ? `Transcribing “${status.name}”…`
+            : status.kind === "error"
+              ? `${status.msg} — click to try again`
+              : "Drop audio to transcribe — or click to browse"
+        }
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!blocked) setOver(true);
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setOver(false);
+          if (!blocked) void handle(e.dataTransfer.files[0]);
+        }}
+        onClick={() => !blocked && inputRef.current?.click()}
+        role="button"
+        tabIndex={0}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept="audio/*,.m4a,.mp3,.wav,.mp4"
+          hidden
+          onChange={(e) => void handle(e.target.files?.[0])}
+        />
+        {working ? <span className="dz-spinner" /> : <UploadIcon error={status.kind === "error"} />}
       </div>
     );
   }

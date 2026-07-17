@@ -14,6 +14,19 @@
 .dz:hover {
   border-color: rgba(0, 0, 0, 0.32);
 }
+/* The rail skin: icon-sized dashed square, same behavior. */
+.dz-compact {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  color: var(--text-2);
+}
 .dz-over {
   border-color: var(--accent);
   background: var(--surface-active);

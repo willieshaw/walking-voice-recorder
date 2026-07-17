@@ -558,6 +558,7 @@ export default function App() {
               <path d="M9.5 4v16" />
             </svg>
           </button>
+          <DropZone onUpload={handleUpload} disabled={!keysReady} compact />
           <button
             className="rail-btn rail-btn-search"
             title="Search notes (⌘K)"
@@ -566,19 +567,6 @@ export default function App() {
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round">
               <circle cx="11" cy="11" r="7" />
               <path d="M21 21l-4.3-4.3" />
-            </svg>
-          </button>
-          <button
-            className="rail-btn"
-            title="Library"
-            onClick={() => {
-              setFilterFolder(null);
-              goLibrary();
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 10.5 12 3l9 7.5" />
-              <path d="M5 9.5V21h14V9.5" />
             </svg>
           </button>
           <button className="rail-btn" title="Folders" onClick={() => setFoldersOpen(true)}>
