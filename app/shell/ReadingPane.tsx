@@ -58,6 +58,7 @@ function ReadingList({
   onEdit?: (chunkId: string, text: string) => void;
 }) {
   const currentTime = useFocus((s) => s.currentTime);
+  const isPlaying = useFocus((s) => s.isPlaying);
   const seek = useFocus((s) => s.seek);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -68,9 +69,13 @@ function ReadingList({
   // the textarea's ref callback on mount, then cleared so later renders leave it alone.
   const caretAt = useRef<number | null>(null);
   // Headings are section titles (combined notes), not seekable body — skip them here.
-  const activeId = items.find(
-    (c) => c.kind !== "heading" && currentTime >= c.tStart && currentTime < c.tEnd,
-  )?.id;
+  // The now-reading highlight only shows while audio is actually playing; a paused
+  // player leaves the text unmarked.
+  const activeId = isPlaying
+    ? items.find(
+        (c) => c.kind !== "heading" && currentTime >= c.tStart && currentTime < c.tEnd,
+      )?.id
+    : undefined;
 
   function startEdit(c: Chunk, caret: number | null = null) {
     cancelEdit.current = false;
