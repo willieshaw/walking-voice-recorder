@@ -13,7 +13,9 @@ export function DictionaryTip({
 }: {
   containerRef: React.RefObject<HTMLElement | null>;
 }) {
-  const [tip, setTip] = useState<{ x: number; y: number; term: string } | null>(null);
+  const [tip, setTip] = useState<{ x: number; y: number; below: boolean; term: string } | null>(
+    null,
+  );
   const [added, setAdded] = useState(false);
   const hideTimer = useRef<number | undefined>(undefined);
 
@@ -35,7 +37,10 @@ export function DictionaryTip({
       if (!term) return setTip(null);
       const r = range.getBoundingClientRect();
       setAdded(false);
-      setTip({ x: r.left + r.width / 2, y: r.top, term });
+      // The pill normally floats above the selection; if there isn't room (selection near
+      // the top of the viewport) it would render off-screen, so flip it below instead.
+      const below = r.top < 48;
+      setTip({ x: r.left + r.width / 2, y: below ? r.bottom : r.top, below, term });
     }
     document.addEventListener("selectionchange", update);
     window.addEventListener("scroll", update, true);
@@ -66,7 +71,7 @@ export function DictionaryTip({
 
   return createPortal(
     <button
-      className={`dt-pill${added ? " dt-added" : ""}`}
+      className={`dt-pill${added ? " dt-added" : ""}${tip.below ? " dt-below" : ""}`}
       style={{ left: tip.x, top: tip.y }}
       // preventDefault keeps the mousedown from collapsing the selection before the
       // click lands; stopPropagation keeps the click off the paragraph's seek handler.

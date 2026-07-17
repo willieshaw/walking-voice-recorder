@@ -8,7 +8,7 @@
 // in place, with the caret landing where you clicked (M5.1). Playing from a paragraph is
 // the deliberate action — the gutter timestamp is the play button. Enter/blur commits,
 // Esc cancels. Text-only — timestamps and ids never change, so seeking survives edits.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Chunk, Note } from "@core/types";
 import { useFocus } from "@core/focus";
 import { formatTime } from "../components/AudioPlayer";
@@ -18,6 +18,11 @@ import "../experiences/clean-read/clean-read.css";
 import "./reading-pane.css";
 
 type Mode = "raw" | "clean";
+
+// Click-to-edit is deferred by this long so a double-click (selecting a word to add to the
+// dictionary) can cancel it — otherwise the first click of the double opens the editor and
+// the "Add to dictionary" pill never gets a selection to attach to.
+const EDIT_CLICK_DELAY = 200;
 
 /** The character index inside the paragraph's text where the user clicked, so the edit
  *  caret can land exactly there — or null (caret goes to the end) when the click wasn't
@@ -68,6 +73,9 @@ function ReadingList({
   // Where the caret should land when the editor opens (null = end of text). Consumed by
   // the textarea's ref callback on mount, then cleared so later renders leave it alone.
   const caretAt = useRef<number | null>(null);
+  // A pending (deferred) click-to-edit, cancellable by a double-click. See EDIT_CLICK_DELAY.
+  const pendingEdit = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(pendingEdit.current), []);
   // Headings are section titles (combined notes), not seekable body — skip them here.
   // The now-reading highlight only shows while audio is actually playing; a paused
   // player leaves the text unmarked.
@@ -177,8 +185,16 @@ function ReadingList({
               c.id === activeId ? " cr-active" : ""
             }`}
             onClick={(e) => {
-              if (onEdit && !selecting()) startEdit(c, caretIndexFromClick(e));
+              if (!onEdit || selecting()) return;
+              // Capture the click's caret index now (the DOM is about to change), then
+              // defer the edit so a double-click can cancel it in favor of word-selection.
+              const caret = caretIndexFromClick(e);
+              window.clearTimeout(pendingEdit.current);
+              pendingEdit.current = window.setTimeout(() => {
+                if (!selecting()) startEdit(c, caret);
+              }, EDIT_CLICK_DELAY);
             }}
+            onDoubleClick={() => window.clearTimeout(pendingEdit.current)}
             title={onEdit ? "Click to edit" : undefined}
           >
             <button

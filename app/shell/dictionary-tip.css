@@ -30,6 +30,11 @@
 .dt-added:hover {
   background: var(--accent);
 }
+/* Flipped below the selection when there's no room above (near the viewport top). */
+.dt-below {
+  transform: translate(-50%, 9px);
+  animation: dt-pop-below 0.14s ease;
+}
 @keyframes dt-pop {
   from {
     opacity: 0;
@@ -38,5 +43,15 @@
   to {
     opacity: 1;
     transform: translate(-50%, calc(-100% - 9px));
+  }
+}
+@keyframes dt-pop-below {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 9px);
   }
 }
