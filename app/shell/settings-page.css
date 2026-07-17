@@ -68,6 +68,19 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
+/* ── Dictionary ──────────────────────────────────────────────────────────── */
+.sp-dictionary {
+  padding: 18px 24px 20px;
+  margin-bottom: 34px;
+}
+.sp-dictionary-sub {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 0 14px;
+  max-width: 58ch;
+}
+
 /* ── Backup ──────────────────────────────────────────────────────────────── */
 .sp-backup {
   display: flex;

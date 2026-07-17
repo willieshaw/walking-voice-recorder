@@ -4,6 +4,7 @@
 import type { Transcript } from "@core/types";
 import type { SttResult } from "@engine/providers/stt";
 import { transcriptFromStt } from "@engine/processors/transcribe/index";
+import { buildSttPrompt, getDictionary } from "../dictionary";
 import { getKeys } from "../keys";
 
 interface OpenAiVerbose {
@@ -18,12 +19,16 @@ export async function transcribe(file: File): Promise<Transcript> {
   const { openai } = getKeys();
   if (!openai) throw new Error("Add your OpenAI key in Settings.");
 
+  // The personal dictionary rides along as the transcription prompt, biasing recognition
+  // toward the user's names/terms. URI-encoded: header values must stay ASCII-safe.
+  const sttPrompt = buildSttPrompt(getDictionary());
   const res = await fetch("/api/transcribe", {
     method: "POST",
     headers: {
       "x-openai-key": openai,
       "x-filename": file.name,
       "content-type": file.type || "application/octet-stream",
+      ...(sttPrompt ? { "x-stt-prompt": encodeURIComponent(sttPrompt) } : {}),
     },
     body: file,
   });

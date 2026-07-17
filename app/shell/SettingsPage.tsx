@@ -5,7 +5,9 @@
 import { useRef, useState } from "react";
 import { SettingsKeys } from "../components/SettingsKeys";
 import { formatTime } from "../components/AudioPlayer";
+import { TagChips } from "./TagChips";
 import { buildBackup, restoreBackup } from "../lib/backup";
+import { getDictionary, setDictionary } from "../lib/dictionary";
 import { TRASH_RETENTION_DAYS, type NoteSummary } from "../lib/notesDb";
 import "./settings-page.css";
 
@@ -48,6 +50,13 @@ export function SettingsPage({
   const [busy, setBusy] = useState<"export" | "restore" | null>(null);
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // The personal dictionary lives in localStorage; edits apply to future transcriptions.
+  const [terms, setTerms] = useState<string[]>(getDictionary);
+
+  function updateTerms(next: string[]) {
+    setTerms(next);
+    setDictionary(next);
+  }
 
   async function downloadBackup() {
     setBusy("export");
@@ -107,6 +116,29 @@ export function SettingsPage({
       </div>
 
       <SettingsKeys onSaved={onKeysSaved} />
+
+      <div className="sp-section-head">
+        <div>
+          <div className="sp-section-label">Dictionary</div>
+          <div className="sp-section-count">
+            {terms.length} term{terms.length === 1 ? "" : "s"}
+          </div>
+        </div>
+      </div>
+      <div className="sp-card sp-dictionary">
+        <p className="sp-dictionary-sub">
+          Names and terms the transcriber should get right — characters, places, jargon.
+          They gently bias how future recordings are heard; nothing already transcribed
+          changes.
+        </p>
+        <TagChips
+          tags={terms}
+          onChange={updateTerms}
+          addLabel="+ Add term"
+          placeholder="name or term"
+          preserveCase
+        />
+      </div>
 
       <div className="sp-section-head">
         <div>

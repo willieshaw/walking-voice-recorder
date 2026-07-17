@@ -24,8 +24,11 @@ export default {
       const apiKey = request.headers.get("x-openai-key");
       if (!apiKey) return missingKey();
       const filename = request.headers.get("x-filename") || "audio.m4a";
+      // The personal dictionary rides in URI-encoded (headers must be ASCII-safe).
+      const rawPrompt = request.headers.get("x-stt-prompt");
+      const prompt = rawPrompt ? decodeURIComponent(rawPrompt) : undefined;
       const audio = await request.blob();
-      return openaiTranscribe(audio, filename, apiKey);
+      return openaiTranscribe(audio, filename, apiKey, prompt);
     }
 
     if (request.method === "POST" && url.pathname === "/api/structure") {

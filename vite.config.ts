@@ -24,9 +24,16 @@ function openaiApiPlugin(): Plugin {
           const apiKey =
             (req.headers["x-openai-key"] as string) || process.env.OPENAI_API_KEY || "";
           const filename = (req.headers["x-filename"] as string) || "audio.m4a";
+          const rawPrompt = req.headers["x-stt-prompt"] as string | undefined;
+          const prompt = rawPrompt ? decodeURIComponent(rawPrompt) : undefined;
           const chunks: Buffer[] = [];
           for await (const c of req) chunks.push(c as Buffer);
-          const upstream = await openaiTranscribe(new Blob([Buffer.concat(chunks)]), filename, apiKey);
+          const upstream = await openaiTranscribe(
+            new Blob([Buffer.concat(chunks)]),
+            filename,
+            apiKey,
+            prompt,
+          );
           res.statusCode = upstream.status;
           res.setHeader("content-type", "application/json");
           res.end(Buffer.from(await upstream.arrayBuffer()));

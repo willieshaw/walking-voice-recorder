@@ -8,6 +8,8 @@ export async function openaiTranscribe(
   audio: Blob,
   filename: string,
   apiKey: string,
+  /** Optional vocabulary-bias prompt (the user's personal dictionary). */
+  prompt?: string,
 ): Promise<Response> {
   const form = new FormData();
   form.append("file", audio, filename);
@@ -15,6 +17,7 @@ export async function openaiTranscribe(
   form.append("response_format", "verbose_json");
   form.append("timestamp_granularities[]", "word");
   form.append("timestamp_granularities[]", "segment");
+  if (prompt) form.append("prompt", prompt);
 
   const upstream = await fetch(WHISPER_URL, {
     method: "POST",

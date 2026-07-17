@@ -1,14 +1,21 @@
-// Editable tag chips: remove via ×, add via the dashed "+ Tag" button (Enter/blur commits,
-// Esc cancels). Pure label editing — persistence is the caller's onChange.
+// Editable chips: remove via ×, add via the dashed "+ …" button (Enter/blur commits,
+// Esc cancels). Pure label editing — persistence is the caller's onChange. Tags lowercase
+// by default; the settings Dictionary reuses this with case preserved (names matter).
 import { useEffect, useRef, useState } from "react";
 import "./tag-chips.css";
 
 export function TagChips({
   tags,
   onChange,
+  addLabel = "+ Add tag",
+  placeholder = "tag name",
+  preserveCase = false,
 }: {
   tags: string[];
   onChange: (tags: string[]) => void;
+  addLabel?: string;
+  placeholder?: string;
+  preserveCase?: boolean;
 }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
@@ -19,7 +26,8 @@ export function TagChips({
   }, [adding]);
 
   function commit() {
-    const t = draft.trim().toLowerCase();
+    const raw = draft.trim();
+    const t = preserveCase ? raw : raw.toLowerCase();
     setAdding(false);
     setDraft("");
     if (t && !tags.includes(t)) onChange([...tags, t]);
@@ -44,7 +52,7 @@ export function TagChips({
           ref={inputRef}
           className="tc-input"
           value={draft}
-          placeholder="tag name"
+          placeholder={placeholder}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
           onKeyDown={(e) => {
@@ -58,7 +66,7 @@ export function TagChips({
         />
       ) : (
         <button className="tc-add" onClick={() => setAdding(true)}>
-          + Add tag
+          {addLabel}
         </button>
       )}
     </div>
