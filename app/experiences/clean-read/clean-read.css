@@ -96,10 +96,8 @@
   margin: 0 0 0.7em;
   padding: 0 0.4em 0 4.4em;
   font-family: "Helvetica Neue", Helvetica, sans-serif;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
   color: var(--muted);
   cursor: pointer;
 }

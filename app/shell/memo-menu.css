@@ -73,10 +73,8 @@
   color: var(--text-2);
 }
 .mm-head {
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
   color: var(--muted);
   padding: 7px 12px 5px;
 }

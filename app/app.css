@@ -119,15 +119,6 @@ body {
   font-size: 13px;
   line-height: 1.5;
 }
-.side-label {
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--muted);
-  padding: 14px 6px 8px;
-}
-
 .side-search {
   display: flex;
   align-items: center;
@@ -168,10 +159,8 @@ body {
   border: none;
   padding: 14px 6px 8px;
   font-family: inherit;
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
   color: var(--muted);
   text-align: left;
   cursor: pointer;
@@ -191,8 +180,7 @@ body {
 .side-sec-count {
   margin-left: auto;
   font-weight: 400;
-  letter-spacing: 0;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--hairline);
   font-variant-numeric: tabular-nums;
 }

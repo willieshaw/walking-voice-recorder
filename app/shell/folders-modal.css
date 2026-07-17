@@ -152,10 +152,8 @@
   padding: 8px;
 }
 .fm-browse-title {
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
   color: var(--muted);
   padding: 8px 12px 6px;
 }
