@@ -42,3 +42,12 @@ export function allFolders(noteFolders: (string | undefined)[], project: string)
   for (const f of noteFolders) if (f) set.add(f);
   return [...set].sort((a, b) => a.localeCompare(b));
 }
+
+/** Carry a project's folder registry along when the project is renamed (merging into any
+ *  registry the new name already has). Folders on notes travel with the notes themselves. */
+export function moveFolderRegistry(oldProject: string, newProject: string): void {
+  if (keyFor(oldProject) === keyFor(newProject)) return;
+  const merged = [...new Set([...storedFolders(newProject), ...storedFolders(oldProject)])];
+  localStorage.setItem(keyFor(newProject), JSON.stringify(merged));
+  localStorage.removeItem(keyFor(oldProject));
+}

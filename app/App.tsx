@@ -27,7 +27,7 @@ import { SearchModal } from "./shell/SearchModal";
 import { FoldersModal } from "./shell/FoldersModal";
 import { TagChips } from "./shell/TagChips";
 import { ProjectSwitcher } from "./shell/ProjectSwitcher";
-import { allFolders, rememberFolder, renameFolder } from "./lib/folders";
+import { allFolders, moveFolderRegistry, rememberFolder, renameFolder } from "./lib/folders";
 import {
   DEFAULT_PROJECT,
   activeProject as storedActiveProject,
@@ -133,9 +133,15 @@ export default function App() {
   const combinedRef = useRef(false);
   combinedRef.current = !!combined;
 
+  const [notesLoaded, setNotesLoaded] = useState(false);
   useEffect(() => {
     // Drop trashed notes whose 30-day window lapsed, then load the rest.
-    purgeExpired().then(listNotes).then(setSummaries);
+    purgeExpired()
+      .then(listNotes)
+      .then((s) => {
+        setSummaries(s);
+        setNotesLoaded(true);
+      });
   }, []);
 
   useEffect(() => {
@@ -172,6 +178,13 @@ export default function App() {
   const folders = allFolders(live.map((s) => s.folder), project);
   void folderBump;
   void projectBump;
+
+  // If the stored active project no longer exists (renamed/deleted in another tab or a
+  // past session), fall back to the first real project once the notes have loaded.
+  useEffect(() => {
+    if (notesLoaded && !projects.includes(project)) switchProject(projects[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notesLoaded, project, projects.join(" ")]);
 
   /** Persist label-facet changes (tags/folder/pinned) and mirror them into state. */
   async function patchLabels(
@@ -257,11 +270,11 @@ export default function App() {
     switchProject(trimmed);
   }
 
-  /** Rename a project: the registry plus a bulk relabel of its notes (same shape as a
-   *  folder rename — a project is just a label). */
+  /** Rename a project — any project, Default included: the registry, the project's folder
+   *  registry, and a bulk relabel of its notes (a project is just a label). */
   async function renameProject(oldName: string, newName: string) {
     const trimmed = newName.trim();
-    if (!trimmed || trimmed === oldName || oldName === DEFAULT_PROJECT) return;
+    if (!trimmed || trimmed === oldName) return;
     if (
       projects.includes(trimmed) &&
       !window.confirm(`Merge "${oldName}" into the existing project "${trimmed}"?`)
@@ -269,6 +282,8 @@ export default function App() {
       return;
     }
     renameProjectStored(oldName, trimmed);
+    moveFolderRegistry(oldName, trimmed);
+    // Renaming Default also captures the unlabeled legacy notes it hosts.
     const affected = summaries.filter((s) => (s.project ?? DEFAULT_PROJECT) === oldName);
     await Promise.all(affected.map((s) => updateNote(s.id, { project: trimmed })));
     setSummaries((prev) =>
@@ -283,30 +298,33 @@ export default function App() {
     }
   }
 
-  /** Delete a project space: its notes move to Default (nothing is lost). */
+  /** Delete a project space: its notes move to the first remaining project (nothing is
+   *  lost). The last project can't be deleted — the switcher greys its trash out too. */
   async function deleteProject(name: string) {
-    if (name === DEFAULT_PROJECT) return;
+    if (projects.length < 2) return;
+    const dest = projects.find((p) => p !== name);
+    if (!dest) return;
     const count = summaries.filter((s) => (s.project ?? DEFAULT_PROJECT) === name).length;
-    const detail = count
-      ? ` Its ${count} note${count === 1 ? "" : "s"} will move to ${DEFAULT_PROJECT}.`
-      : "";
+    const detail = count ? ` Its ${count} note${count === 1 ? "" : "s"} will move to ${dest}.` : "";
     if (!window.confirm(`Delete the project "${name}"?${detail}`)) return;
     removeProjectStored(name);
+    const newLabel = dest === DEFAULT_PROJECT ? undefined : dest;
     const affected = summaries.filter((s) => (s.project ?? DEFAULT_PROJECT) === name);
-    await Promise.all(affected.map((s) => updateNote(s.id, { project: undefined })));
+    await Promise.all(affected.map((s) => updateNote(s.id, { project: newLabel })));
     setSummaries((prev) =>
       prev.map((s) =>
-        (s.project ?? DEFAULT_PROJECT) === name ? { ...s, project: undefined } : s,
+        (s.project ?? DEFAULT_PROJECT) === name ? { ...s, project: newLabel } : s,
       ),
     );
     setProjectBump((n) => n + 1);
-    if (project === name) switchProject(DEFAULT_PROJECT);
+    if (project === name) switchProject(dest);
   }
 
   async function handleUpload(file: File) {
     const { note: n, audioBlob } = await processInBrowser(file);
-    // New notes land in the active project (Default stays unlabeled — legacy-compatible).
-    if (project !== DEFAULT_PROJECT) n.project = project;
+    // New notes are stamped with the active project explicitly, so projects survive
+    // Default being renamed out from under unlabeled notes.
+    n.project = project;
     await saveNote(n, audioBlob);
     setSummaries(await listNotes());
     openMemo(n.id);

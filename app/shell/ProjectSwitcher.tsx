@@ -1,10 +1,9 @@
 // The project ("drive") switcher at the top of the sidebar: the active project's name with
 // an up/down chevron, opening a dropdown — PROJECTS list (✓ on the active one, persistent
-// rename/delete buttons on every other project), Create project, and a greyed-out "Manage
-// projects" placeholder. A project is one more label facet on notes; switching just
-// changes which filtered view the whole app shows.
+// rename/delete buttons on every row; delete greys out when only one project exists),
+// Create project, and a greyed-out "Manage projects" placeholder. A project is one more
+// label facet on notes; switching just changes which filtered view the whole app shows.
 import { useEffect, useRef, useState } from "react";
-import { DEFAULT_PROJECT } from "../lib/projects";
 import "./project-switcher.css";
 
 export function ProjectSwitcher({
@@ -121,34 +120,35 @@ export function ProjectSwitcher({
                   <span className="ps-check">{p === active ? "✓" : ""}</span>
                   {p}
                 </button>
-                {p !== DEFAULT_PROJECT && (
-                  <>
-                    <button
-                      className="ps-mini"
-                      title="Rename project"
-                      onClick={() => {
-                        cancelRef.current = false;
-                        setRenameVal(p);
-                        setRenaming(p);
-                      }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" />
-                      </svg>
-                    </button>
-                    <button
-                      className="ps-mini ps-mini-danger"
-                      title="Delete project (its notes move to Default)"
-                      onClick={() => onDelete(p)}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                        <path d="M3 6h18" />
-                        <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
-                        <path d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14" />
-                      </svg>
-                    </button>
-                  </>
-                )}
+                <button
+                  className="ps-mini"
+                  title="Rename project"
+                  onClick={() => {
+                    cancelRef.current = false;
+                    setRenameVal(p);
+                    setRenaming(p);
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" />
+                  </svg>
+                </button>
+                <button
+                  className="ps-mini ps-mini-danger"
+                  disabled={projects.length < 2}
+                  title={
+                    projects.length < 2
+                      ? "Your only project can't be deleted"
+                      : "Delete project (its notes move to another project)"
+                  }
+                  onClick={() => onDelete(p)}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                    <path d="M3 6h18" />
+                    <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+                    <path d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14" />
+                  </svg>
+                </button>
               </div>
             ),
           )}

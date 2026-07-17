@@ -134,9 +134,17 @@
   color: var(--text);
   background: rgba(0, 0, 0, 0.05);
 }
-.ps-mini-danger:hover {
+.ps-mini-danger:hover:not(:disabled) {
   color: #dc2626;
   background: rgba(220, 38, 38, 0.07);
+}
+.ps-mini:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.ps-mini:disabled:hover {
+  background: none;
+  color: var(--muted);
 }
 .ps-input {
   width: calc(100% - 8px);
