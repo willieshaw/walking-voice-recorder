@@ -622,7 +622,6 @@ export default function App() {
           <button className="side-sec-head" onClick={() => toggleSec("folders")}>
             <span className={`side-caret${openSecs.folders ? " side-caret-open" : ""}`}>›</span>
             Folders
-            <span className="side-sec-count">{folders.length}</span>
           </button>
           <button
             className="icon-btn side-sec-action"

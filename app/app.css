@@ -206,6 +206,11 @@ body {
   color: var(--text-2);
   cursor: pointer;
 }
+/* Breathing room between rows so two adjacent hover/active backgrounds read as two
+ * rows rather than fusing into one block. */
+.side-folder + .side-folder {
+  margin-top: 2px;
+}
 .side-folder:hover {
   background: rgba(0, 0, 0, 0.05);
 }
@@ -237,6 +242,9 @@ body {
   padding: 0 4px;
   overflow-y: auto;
   flex: 1;
+}
+.note-list li + li {
+  margin-top: 2px; /* same reason as .side-folder — keep adjacent rows distinct */
 }
 .note-list-pinned {
   flex: none;
