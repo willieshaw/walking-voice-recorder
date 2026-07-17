@@ -127,9 +127,8 @@ export function SettingsPage({
       </div>
       <div className="sp-card sp-dictionary">
         <p className="sp-dictionary-sub">
-          Names and terms the transcriber should get right — characters, places, jargon.
-          They gently bias how future recordings are heard; nothing already transcribed
-          changes.
+          Names and terms the transcriber should get right — applied to new recordings
+          only. Add them here, or highlight a word in any transcript.
         </p>
         <TagChips
           tags={terms}

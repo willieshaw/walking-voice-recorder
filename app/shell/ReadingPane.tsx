@@ -12,6 +12,7 @@ import type { Chunk, Note } from "@core/types";
 import { useFocus } from "@core/focus";
 import { formatTime } from "../components/AudioPlayer";
 import { useCopyFlash } from "../lib/useCopyFlash";
+import { DictionaryTip } from "./DictionaryTip";
 import "../experiences/clean-read/clean-read.css";
 import "./reading-pane.css";
 
@@ -169,6 +170,8 @@ export function ReadingPane({
   const [mode, setMode] = useState<Mode>("raw");
   const [copied, flashCopied] = useCopyFlash();
   const hasClean = cleanedChunks(note).length > 0;
+  // Highlighting a word or short phrase anywhere in the pane offers "Add to dictionary".
+  const paneRef = useRef<HTMLDivElement>(null);
 
   const items: Chunk[] =
     mode === "clean" ? cleanedChunks(note) : (note.transcript?.paragraphs ?? []);
@@ -188,7 +191,8 @@ export function ReadingPane({
   );
 
   return (
-    <div className="rp">
+    <div className="rp" ref={paneRef}>
+      <DictionaryTip containerRef={paneRef} />
       <div className="rp-top">
         <div className="rp-switch">
           {pill("raw", "Raw")}

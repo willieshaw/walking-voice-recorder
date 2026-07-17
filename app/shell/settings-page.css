@@ -80,6 +80,11 @@
   margin: 0 0 14px;
   max-width: 58ch;
 }
+/* The chip row's built-in bottom margin is for the memo page; here the card's own
+ * padding handles the spacing. */
+.sp-dictionary .tc-row {
+  margin-bottom: 0;
+}
 
 /* ── Backup ──────────────────────────────────────────────────────────────── */
 .sp-backup {

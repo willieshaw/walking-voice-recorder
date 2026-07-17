@@ -4,7 +4,9 @@
   z-index: 5;
   margin-bottom: 24px;
 }
-.sp-card {
+/* "spl-" (sticky player) — not "sp-", which the settings page owns; the two once
+ * collided and the player's flex display leaked into settings cards. */
+.spl-card {
   display: flex;
   align-items: flex-start;
   gap: 16px;
@@ -18,7 +20,7 @@
   box-shadow: 0 0 0 rgba(0, 0, 0, 0);
   transition: box-shadow 0.2s ease;
 }
-.sp-card.sp-stuck {
+.spl-card.sp-stuck {
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.07);
 }
 .sp-play {

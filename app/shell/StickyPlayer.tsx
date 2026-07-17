@@ -156,7 +156,7 @@ export function StickyPlayer({ note, segments }: { note: Note; segments?: Combin
         <AudioPlayer src={note.audioUrl} hidden />
       )}
       <div
-        className={`sp-card${stuck ? " sp-stuck" : ""}${expanded ? "" : " sp-min"}`}
+        className={`spl-card${stuck ? " sp-stuck" : ""}${expanded ? "" : " sp-min"}`}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
       >
