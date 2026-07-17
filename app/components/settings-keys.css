@@ -62,8 +62,3 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
-.sk-note {
-  color: var(--muted);
-  font-size: 0.8rem;
-  margin: 1rem 0 0;
-}

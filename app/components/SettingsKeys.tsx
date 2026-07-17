@@ -14,13 +14,10 @@ export function SettingsKeys({ onSaved }: { onSaved: () => void }) {
 
   return (
     <div className="sk">
-      <h2 className="sk-title">Your OpenAI key</h2>
+      <h2 className="sk-title">OpenAI API key</h2>
       <p className="sk-intro">
-        This app runs in your browser using your own OpenAI key — for both transcribing
-        your recording and structuring it into the Layers view. It's stored only on this
-        device. (Your recording and its transcript pass through a small stateless relay to
-        reach OpenAI, since OpenAI doesn't allow calling its API directly from a browser —
-        nothing is ever stored there.)
+        You need your own OpenAI API key to run the app. It's stored only on this device —
+        don't have one yet? Get one below.
       </p>
 
       <label className="sk-field">
@@ -40,9 +37,6 @@ export function SettingsKeys({ onSaved }: { onSaved: () => void }) {
       <button className="sk-save" onClick={save} disabled={!openai.trim()}>
         Save key
       </button>
-      <p className="sk-note">
-        Tip: set a small monthly spend limit on your account so there are no surprises.
-      </p>
     </div>
   );
 }
