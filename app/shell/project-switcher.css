@@ -109,6 +109,14 @@
 .ps-action:hover {
   color: var(--text);
 }
+/* Greyed placeholder (Manage projects): no hover treatment, "Coming soon" title tooltip. */
+.ps-item-disabled,
+.ps-item-disabled:hover {
+  opacity: 0.45;
+  color: var(--text-2);
+  background: none;
+  cursor: default;
+}
 .ps-mini {
   flex: none;
   width: 24px;

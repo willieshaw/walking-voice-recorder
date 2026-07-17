@@ -1,7 +1,8 @@
 // The project ("drive") switcher at the top of the sidebar: the active project's name with
-// an up/down chevron, opening a dropdown — PROJECTS list (✓ on the active one), Create
-// project, Manage projects (inline rename/delete). A project is one more label facet on
-// notes; switching just changes which filtered view the whole app shows.
+// an up/down chevron, opening a dropdown — PROJECTS list (✓ on the active one, persistent
+// rename/delete buttons on every other project), Create project, and a greyed-out "Manage
+// projects" placeholder. A project is one more label facet on notes; switching just
+// changes which filtered view the whole app shows.
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_PROJECT } from "../lib/projects";
 import "./project-switcher.css";
@@ -22,7 +23,6 @@ export function ProjectSwitcher({
   onDelete: (name: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [managing, setManaging] = useState(false);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState("");
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -32,7 +32,6 @@ export function ProjectSwitcher({
 
   function close() {
     setOpen(false);
-    setManaging(false);
     setCreating(false);
     setRenaming(null);
     setDraft("");
@@ -115,16 +114,14 @@ export function ProjectSwitcher({
                   className={`ps-item${p === active ? " ps-item-active" : ""}`}
                   role="menuitem"
                   onClick={() => {
-                    if (!managing) {
-                      onSwitch(p);
-                      close();
-                    }
+                    onSwitch(p);
+                    close();
                   }}
                 >
                   <span className="ps-check">{p === active ? "✓" : ""}</span>
                   {p}
                 </button>
-                {managing && p !== DEFAULT_PROJECT && (
+                {p !== DEFAULT_PROJECT && (
                   <>
                     <button
                       className="ps-mini"
@@ -181,9 +178,12 @@ export function ProjectSwitcher({
               Create project
             </button>
           )}
+          {/* Placeholder for a fuller management surface. Not a native `disabled` — that
+           *  can swallow hover in some engines and the "Coming soon" tooltip must show. */}
           <button
-            className={`ps-item ps-action${managing ? " ps-item-active" : ""}`}
-            onClick={() => setManaging((v) => !v)}
+            className="ps-item ps-action ps-item-disabled"
+            title="Coming soon"
+            aria-disabled="true"
           >
             <span className="ps-check">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -191,7 +191,7 @@ export function ProjectSwitcher({
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
               </svg>
             </span>
-            {managing ? "Done managing" : "Manage projects"}
+            Manage projects
           </button>
         </div>
       )}
