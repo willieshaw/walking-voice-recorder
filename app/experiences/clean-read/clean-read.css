@@ -47,19 +47,6 @@
 .cr-ts:hover {
   color: var(--accent);
 }
-/* While editing there's no play button — the timestamp shows as plain generated content
- *  (the number lives in the CSS layer, outside the textarea's text). */
-.cr-para::before {
-  content: attr(data-ts);
-  position: absolute;
-  left: 0.7em;
-  top: 0.3em;
-  width: 3.2em;
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  font-variant-numeric: tabular-nums;
-  font-size: 0.72rem;
-  color: var(--muted);
-}
 .cr-empty {
   color: var(--muted);
   text-align: center;

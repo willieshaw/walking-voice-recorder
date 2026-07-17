@@ -119,7 +119,18 @@ function ReadingList({
             {c.text}
           </h3>
         ) : c.id === editingId ? (
-          <p key={c.id} className="cr-para cr-editing" data-ts={formatTime(c.tStart)}>
+          <p key={c.id} className="cr-para cr-editing">
+            {/* The same .cr-ts button as the reading state — rendering it identically in
+             *  both avoids the paragraph's timestamp jumping when the editor opens/closes. */}
+            <button
+              className="cr-ts"
+              title={`Play from ${formatTime(c.tStart)}`}
+              tabIndex={-1}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => seek(c.tStart, { activeChunkId: c.id })}
+            >
+              {formatTime(c.tStart)}
+            </button>
             <textarea
               className="cr-edit-input"
               autoFocus
