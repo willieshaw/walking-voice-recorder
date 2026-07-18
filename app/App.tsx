@@ -107,6 +107,9 @@ export default function App() {
       return { folders: true, recent: true };
     }
   });
+  // Dragging a Recent/Pinned note over a sidebar folder row: which row is the live drop
+  // target ("" = the All notes row, meaning "remove from its folder").
+  const [dropFolder, setDropFolder] = useState<string | null>(null);
   function toggleSec(k: "folders" | "recent") {
     setOpenSecs((prev) => {
       const next = { ...prev, [k]: !prev[k] };
@@ -640,12 +643,23 @@ export default function App() {
             <a
               className={`side-folder${
                 filterFolder === null && view === "library" ? " side-folder-active" : ""
-              }`}
+              }${dropFolder === "" ? " side-folder-drop" : ""}`}
               role="button"
               tabIndex={0}
               onClick={() => {
                 setFilterFolder(null);
                 setView("library");
+              }}
+              onDragOver={(e) => {
+                e.preventDefault(); // dropping on All notes clears the note's folder
+                setDropFolder("");
+              }}
+              onDragLeave={() => setDropFolder((v) => (v === "" ? null : v))}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDropFolder(null);
+                const id = e.dataTransfer.getData("text/wvr-note");
+                if (id) void patchLabels(id, { folder: undefined });
               }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
@@ -659,12 +673,23 @@ export default function App() {
                 key={f}
                 className={`side-folder${
                   filterFolder === f && view === "library" ? " side-folder-active" : ""
-                }`}
+                }${dropFolder === f ? " side-folder-drop" : ""}`}
                 role="button"
                 tabIndex={0}
                 onClick={() => {
                   setFilterFolder(f);
                   setView("library");
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDropFolder(f);
+                }}
+                onDragLeave={() => setDropFolder((v) => (v === f ? null : v))}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDropFolder(null);
+                  const id = e.dataTransfer.getData("text/wvr-note");
+                  if (id) void patchLabels(id, { folder: f });
                 }}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
@@ -961,6 +986,12 @@ function SidebarNote({
         className={`note-item${selected ? " selected" : ""}`}
         role="button"
         tabIndex={0}
+        // Draggable onto a sidebar folder row (or All notes, to unfile it).
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData("text/wvr-note", s.id);
+          e.dataTransfer.effectAllowed = "move";
+        }}
         onClick={() => onOpen(s.id)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") onOpen(s.id);
