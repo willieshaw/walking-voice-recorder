@@ -9,6 +9,27 @@ function keyFor(project: string): string {
   return project === DEFAULT_PROJECT ? LEGACY_KEY : `wvr.folders:${project}`;
 }
 
+// Pinned folders: the same label-facet idea as a note's `pinned`, but folders are just
+// strings, so the pin set lives beside the folder registry (scoped per project).
+function pinKeyFor(project: string): string {
+  return project === DEFAULT_PROJECT ? "wvr.pinnedFolders" : `wvr.pinnedFolders:${project}`;
+}
+
+export function pinnedFolders(project: string): string[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(pinKeyFor(project)) ?? "[]");
+    return Array.isArray(raw) ? raw.filter((f): f is string => typeof f === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function setFolderPinned(name: string, project: string, pinned: boolean): void {
+  const list = pinnedFolders(project).filter((f) => f !== name);
+  if (pinned) list.push(name);
+  localStorage.setItem(pinKeyFor(project), JSON.stringify(list));
+}
+
 export function storedFolders(project: string): string[] {
   try {
     const raw = JSON.parse(localStorage.getItem(keyFor(project)) ?? "[]");
@@ -35,6 +56,11 @@ export function renameFolder(oldName: string, newName: string, project: string):
   const list = storedFolders(project).filter((f) => f !== oldName);
   if (!list.includes(trimmed)) list.push(trimmed);
   localStorage.setItem(keyFor(project), JSON.stringify(list));
+  // The pin rides along with the rename.
+  if (pinnedFolders(project).includes(oldName)) {
+    setFolderPinned(oldName, project, false);
+    setFolderPinned(trimmed, project, true);
+  }
 }
 
 export function allFolders(noteFolders: (string | undefined)[], project: string): string[] {
@@ -50,4 +76,8 @@ export function moveFolderRegistry(oldProject: string, newProject: string): void
   const merged = [...new Set([...storedFolders(newProject), ...storedFolders(oldProject)])];
   localStorage.setItem(keyFor(newProject), JSON.stringify(merged));
   localStorage.removeItem(keyFor(oldProject));
+  // Pins travel with the registry.
+  const pins = [...new Set([...pinnedFolders(newProject), ...pinnedFolders(oldProject)])];
+  localStorage.setItem(pinKeyFor(newProject), JSON.stringify(pins));
+  localStorage.removeItem(pinKeyFor(oldProject));
 }

@@ -27,7 +27,14 @@ import { SearchModal } from "./shell/SearchModal";
 import { FoldersModal } from "./shell/FoldersModal";
 import { TagChips } from "./shell/TagChips";
 import { ProjectSwitcher } from "./shell/ProjectSwitcher";
-import { allFolders, moveFolderRegistry, rememberFolder, renameFolder } from "./lib/folders";
+import {
+  allFolders,
+  moveFolderRegistry,
+  pinnedFolders,
+  rememberFolder,
+  renameFolder,
+  setFolderPinned,
+} from "./lib/folders";
 import {
   DEFAULT_PROJECT,
   activeProject as storedActiveProject,
@@ -110,6 +117,20 @@ export default function App() {
   // Dragging a Recent/Pinned note over a sidebar folder row: which row is the live drop
   // target ("" = the All notes row, meaning "remove from its folder").
   const [dropFolder, setDropFolder] = useState<string | null>(null);
+  // The sidebar's "+" spawns an unnamed folder row; it becomes real once named.
+  const [namingFolder, setNamingFolder] = useState(false);
+  const cancelNaming = useRef(false);
+  function commitNewFolder(value: string) {
+    setNamingFolder(false);
+    if (cancelNaming.current) {
+      cancelNaming.current = false;
+      return;
+    }
+    const name = value.trim();
+    if (!name) return;
+    rememberFolder(name, project);
+    setFolderBump((b) => b + 1);
+  }
   function toggleSec(k: "folders" | "recent") {
     setOpenSecs((prev) => {
       const next = { ...prev, [k]: !prev[k] };
@@ -179,8 +200,44 @@ export default function App() {
   const trashed = inProject.filter((s) => s.deletedAt);
 
   const folders = allFolders(live.map((s) => s.folder), project);
+  // Pinned folders surface in the sidebar's Pinned section (and leave the Folders list).
+  const pinnedF = pinnedFolders(project).filter((f) => folders.includes(f));
   void folderBump;
   void projectBump;
+
+  function toggleFolderPin(f: string) {
+    setFolderPinned(f, project, !pinnedFolders(project).includes(f));
+    setFolderBump((b) => b + 1);
+  }
+
+  /** One sidebar folder row — shared by the Pinned section and the Folders list so both
+   *  filter, pin, and accept note drops identically. */
+  const folderRow = (f: string) => (
+    <SidebarFolder
+      key={f}
+      name={f}
+      count={live.filter((s) => s.folder === f).length}
+      active={filterFolder === f && view === "library"}
+      dropTarget={dropFolder === f}
+      pinned={pinnedF.includes(f)}
+      onOpen={() => {
+        setFilterFolder(f);
+        setView("library");
+      }}
+      onTogglePin={() => toggleFolderPin(f)}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDropFolder(f);
+      }}
+      onDragLeave={() => setDropFolder((v) => (v === f ? null : v))}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDropFolder(null);
+        const id = e.dataTransfer.getData("text/wvr-note");
+        if (id) void patchLabels(id, { folder: f });
+      }}
+    />
+  );
 
   // If the stored active project no longer exists (renamed/deleted in another tab or a
   // past session), fall back to the first real project once the notes have loaded.
@@ -621,10 +678,32 @@ export default function App() {
             <span className="kbd-cmd">⌘</span>K
           </span>
         </button>
+        {(pinnedF.length > 0 || live.some((s) => s.pinned)) && (
+          <>
+            <div className="side-sec-head side-sec-static">Pinned</div>
+            {pinnedF.length > 0 && <div className="side-folder-list">{pinnedF.map(folderRow)}</div>}
+            {live.some((s) => s.pinned) && (
+              <ul className="note-list note-list-pinned">
+                {live
+                  .filter((s) => s.pinned)
+                  .map((s) => (
+                    <SidebarNote
+                      key={s.id}
+                      summary={s}
+                      selected={s.id === selectedId && view === "memo"}
+                      onOpen={openMemo}
+                      onRename={handleRename}
+                      onTogglePin={() => void patchLabels(s.id, { pinned: !s.pinned })}
+                    />
+                  ))}
+              </ul>
+            )}
+          </>
+        )}
         <div className="side-sec-row">
           <button className="side-sec-head" onClick={() => toggleSec("folders")}>
-            <span className={`side-caret${openSecs.folders ? " side-caret-open" : ""}`}>›</span>
             Folders
+            <span className={`side-caret${openSecs.folders ? " side-caret-open" : ""}`}>›</span>
           </button>
           <button
             className="icon-btn side-sec-action"
@@ -635,6 +714,19 @@ export default function App() {
               <circle cx="5" cy="12" r="1.6" />
               <circle cx="12" cy="12" r="1.6" />
               <circle cx="19" cy="12" r="1.6" />
+            </svg>
+          </button>
+          <button
+            className="icon-btn side-sec-action"
+            title="New folder"
+            onClick={() => {
+              if (!openSecs.folders) toggleSec("folders");
+              cancelNaming.current = false; // fresh naming session
+              setNamingFolder(true);
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M12 5v14M5 12h14" />
             </svg>
           </button>
         </div>
@@ -668,39 +760,30 @@ export default function App() {
               <span className="side-folder-name">All notes</span>
               <span className="side-folder-count">{live.length}</span>
             </a>
-            {folders.map((f) => (
-              <a
-                key={f}
-                className={`side-folder${
-                  filterFolder === f && view === "library" ? " side-folder-active" : ""
-                }${dropFolder === f ? " side-folder-drop" : ""}`}
-                role="button"
-                tabIndex={0}
-                onClick={() => {
-                  setFilterFolder(f);
-                  setView("library");
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDropFolder(f);
-                }}
-                onDragLeave={() => setDropFolder((v) => (v === f ? null : v))}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDropFolder(null);
-                  const id = e.dataTransfer.getData("text/wvr-note");
-                  if (id) void patchLabels(id, { folder: f });
-                }}
-              >
+            {namingFolder && (
+              <div className="side-folder">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
                   <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                 </svg>
-                <span className="side-folder-name">{f}</span>
-                <span className="side-folder-count">
-                  {live.filter((s) => s.folder === f).length}
-                </span>
-              </a>
-            ))}
+                <input
+                  className="side-folder-input"
+                  autoFocus
+                  placeholder="Folder name"
+                  onBlur={(e) => commitNewFolder(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                    // Commit directly — not via blur() — so Enter works even if focus
+                    // was lost along the way; the blur that follows dedupes to a no-op.
+                    if (e.key === "Enter") commitNewFolder(e.currentTarget.value);
+                    else if (e.key === "Escape") {
+                      cancelNaming.current = true; // the pending blur must not commit
+                      setNamingFolder(false);
+                    }
+                  }}
+                />
+              </div>
+            )}
+            {folders.filter((f) => !pinnedF.includes(f)).map(folderRow)}
           </div>
         )}
         {live.length === 0 ? (
@@ -711,27 +794,9 @@ export default function App() {
           </p>
         ) : (
           <>
-            {live.some((s) => s.pinned) && (
-              <>
-                <div className="side-label">Pinned</div>
-                <ul className="note-list note-list-pinned">
-                  {live
-                    .filter((s) => s.pinned)
-                    .map((s) => (
-                      <SidebarNote
-                        key={s.id}
-                        summary={s}
-                        selected={s.id === selectedId && view === "memo"}
-                        onOpen={openMemo}
-                        onRename={handleRename}
-                      />
-                    ))}
-                </ul>
-              </>
-            )}
             <button className="side-sec-head" onClick={() => toggleSec("recent")}>
-              <span className={`side-caret${openSecs.recent ? " side-caret-open" : ""}`}>›</span>
               Recent
+              <span className={`side-caret${openSecs.recent ? " side-caret-open" : ""}`}>›</span>
             </button>
             {openSecs.recent && (
               <ul className="note-list">
@@ -744,6 +809,7 @@ export default function App() {
                       selected={s.id === selectedId && view === "memo"}
                       onOpen={openMemo}
                       onRename={handleRename}
+                      onTogglePin={() => void patchLabels(s.id, { pinned: !s.pinned })}
                     />
                   ))}
               </ul>
@@ -969,16 +1035,37 @@ export default function App() {
   );
 }
 
+/** The shared pin glyph (filled when pinned) — same mark the memo header uses. */
+function PinIcon({ on }: { on: boolean }) {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill={on ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 17v5" />
+      <path d="M9 10.8V4h6v6.8l2 3.2H7l2-3.2z" />
+    </svg>
+  );
+}
+
 function SidebarNote({
   summary: s,
   selected,
   onOpen,
   onRename,
+  onTogglePin,
 }: {
   summary: NoteSummary;
   selected: boolean;
   onOpen: (id: string) => void;
   onRename: (id: string, title: string) => void;
+  onTogglePin: () => void;
 }) {
   return (
     <li>
@@ -1005,7 +1092,71 @@ function SidebarNote({
           onSave={(t) => onRename(s.id, t)}
         />
         <span className="note-dur">{formatTime(s.durationSec)}</span>
+        <button
+          className="row-pin"
+          title={s.pinned ? "Unpin" : "Pin to sidebar"}
+          onClick={(e) => {
+            e.stopPropagation();
+            onTogglePin();
+          }}
+        >
+          <PinIcon on={s.pinned} />
+        </button>
       </div>
     </li>
+  );
+}
+
+function SidebarFolder({
+  name,
+  count,
+  active,
+  dropTarget,
+  pinned,
+  onOpen,
+  onTogglePin,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+}: {
+  name: string;
+  count: number;
+  active: boolean;
+  dropTarget: boolean;
+  pinned: boolean;
+  onOpen: () => void;
+  onTogglePin: () => void;
+  onDragOver: React.DragEventHandler<HTMLAnchorElement>;
+  onDragLeave: React.DragEventHandler<HTMLAnchorElement>;
+  onDrop: React.DragEventHandler<HTMLAnchorElement>;
+}) {
+  return (
+    <a
+      className={`side-folder${active ? " side-folder-active" : ""}${
+        dropTarget ? " side-folder-drop" : ""
+      }`}
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+        <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      </svg>
+      <span className="side-folder-name">{name}</span>
+      <span className="side-folder-count">{count}</span>
+      <button
+        className="row-pin"
+        title={pinned ? "Unpin" : "Pin to sidebar"}
+        onClick={(e) => {
+          e.stopPropagation();
+          onTogglePin();
+        }}
+      >
+        <PinIcon on={pinned} />
+      </button>
+    </a>
   );
 }

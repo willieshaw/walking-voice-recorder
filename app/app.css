@@ -161,18 +161,25 @@ body {
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--text);
   text-align: left;
   cursor: pointer;
 }
-.side-sec-head:hover {
-  color: var(--text-2);
+/* The Pinned header: same type as the section heads, but it's a label, not a toggle. */
+.side-sec-static {
+  cursor: default;
 }
+/* The collapse caret rides to the RIGHT of the label, grey, and only on hover. */
 .side-caret {
   display: inline-block;
   font-size: 12px;
   line-height: 1;
-  transition: transform 0.15s ease;
+  color: var(--muted);
+  opacity: 0;
+  transition: transform 0.15s ease, opacity 0.12s ease;
+}
+.side-sec-head:hover .side-caret {
+  opacity: 1;
 }
 .side-caret-open {
   transform: rotate(90deg);
@@ -190,6 +197,13 @@ body {
   height: 24px;
   margin: 6px 2px 0 4px;
   color: var(--muted);
+  /* Section actions (⋯ manage, + new folder) appear only while the row is hovered. */
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.side-sec-row:hover .side-sec-action,
+.side-sec-action:focus-visible {
+  opacity: 1;
 }
 
 /* The Folders dropdown: All notes + one row per folder, filtering the library. */
@@ -241,6 +255,47 @@ body {
   font-size: 10.5px;
   color: var(--hairline);
   font-variant-numeric: tabular-nums;
+}
+
+/* Hover pin on note and folder rows: takes the count/duration's spot while hovered. */
+.row-pin {
+  flex: none;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 5px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.row-pin:hover {
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.07);
+}
+.note-item:hover .row-pin,
+.side-folder:hover .row-pin {
+  display: flex;
+}
+.note-item:hover .note-dur,
+.side-folder:hover .side-folder-count {
+  display: none;
+}
+
+/* The "+ new folder" inline naming row: a bare input wearing the folder row's type. */
+.side-folder-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: none;
+  border: none;
+  outline: none;
+  padding: 0;
 }
 
 .note-list {
