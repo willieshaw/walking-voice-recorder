@@ -13,7 +13,7 @@ import type { Chunk, Note } from "@core/types";
 import { useFocus } from "@core/focus";
 import { formatTime } from "../components/AudioPlayer";
 import { useCopyFlash } from "../lib/useCopyFlash";
-import { DictionaryTip } from "./DictionaryTip";
+import { DictionaryMenu } from "./DictionaryMenu";
 import "../experiences/clean-read/clean-read.css";
 import "./reading-pane.css";
 
@@ -269,7 +269,7 @@ export function ReadingPane({
 
   return (
     <div className="rp" ref={paneRef}>
-      <DictionaryTip containerRef={paneRef} />
+      <DictionaryMenu containerRef={paneRef} />
       <div className="rp-top">
         <div className="rp-switch">
           {pill("raw", "Raw")}
