@@ -195,7 +195,7 @@ body {
   flex: none;
   width: 24px;
   height: 24px;
-  margin: 6px 2px 0 4px;
+  margin: 6px 2px 2px 4px; /* 2px below so the hover box clears the All notes row */
   color: var(--muted);
   /* Section actions (⋯ manage, + new folder) appear only while the row is hovered. */
   opacity: 0;
@@ -211,6 +211,7 @@ body {
   margin-bottom: 2px;
 }
 .side-folder {
+  position: relative; /* anchors the hover pin so it can't alter the row's size */
   display: flex;
   align-items: center;
   gap: 8px;
@@ -257,9 +258,14 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Hover pin on note and folder rows: takes the count/duration's spot while hovered. */
+/* Hover pin on note and folder rows. Absolutely positioned over the count/duration slot
+ * (which fades, keeping its width) so hovering never changes the row's size — a
+ * display-swap here made rows visibly jump. */
 .row-pin {
-  flex: none;
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
   display: none;
   align-items: center;
   justify-content: center;
@@ -282,7 +288,7 @@ body {
 }
 .note-item:hover .note-dur,
 .side-folder:hover .side-folder-count {
-  display: none;
+  opacity: 0;
 }
 
 /* The "+ new folder" inline naming row: a bare input wearing the folder row's type. */
@@ -313,6 +319,7 @@ body {
   margin-bottom: 4px;
 }
 .note-item {
+  position: relative; /* anchors the hover pin so it can't alter the row's size */
   width: 100%;
   display: flex;
   justify-content: space-between;
