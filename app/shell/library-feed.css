@@ -7,7 +7,9 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  margin-bottom: 6px;
+  /* No horizontal padding: the title/count align with the rows' text content, which the
+   * rows achieve via a negative margin that cancels their own padding (see .lf-row). */
+  margin-bottom: 8px;
 }
 .lf-title {
   margin: 0;
@@ -20,20 +22,20 @@
   font-size: 12px;
   color: var(--hairline);
 }
-.lf-rule {
-  height: 1px;
-  background: rgba(0, 0, 0, 0.1);
-  margin-bottom: 2px;
-}
+/* No dividers — each row is just a hover-highlight rounded rectangle. The negative margin
+ * pulls the row out by its own padding so the text content lines up with the header while
+ * the hover rect breathes 14px past it on each side. */
 .lf-row {
   display: flex;
   flex-direction: column;
-  padding: 22px 8px;
-  border-bottom: 1px solid var(--border);
+  padding: 18px 14px;
+  margin: 0 -14px;
+  border-radius: 12px;
   cursor: pointer;
+  transition: background 0.12s ease;
 }
 .lf-row:hover {
-  background: rgba(0, 0, 0, 0.02);
+  background: rgba(0, 0, 0, 0.045);
 }
 /* The top line: date/folder on the left, the mini waveform + duration on the right. */
 .lf-topline {

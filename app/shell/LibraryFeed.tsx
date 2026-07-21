@@ -53,7 +53,6 @@ export function LibraryFeed({
           {summaries.length} note{summaries.length === 1 ? "" : "s"}
         </span>
       </div>
-      <div className="lf-rule" />
       {summaries.map((s) => (
         <a
           key={s.id}
