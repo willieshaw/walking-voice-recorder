@@ -108,6 +108,10 @@ export default function App() {
   const [keysReady, setKeysReady] = useState(hasKeys());
   const [keysModalOpen, setKeysModalOpen] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
+  // Where the re-analysis was launched from: the offer banner (shows "Upgrading…" in place)
+  // or the ⋯ menu (shows a plain "Analyzing…" pill — the older-prompts pitch is out of place
+  // once the user has already chosen to re-run it).
+  const [analyzeSource, setAnalyzeSource] = useState<"banner" | "menu">("banner");
   const [upgradeError, setUpgradeError] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [foldersOpen, setFoldersOpen] = useState(false);
@@ -703,8 +707,12 @@ export default function App() {
   // menu-triggered re-analysis has visible progress.
   const staleKinds = note?.transcript ? staleAnalyses(note) : [];
   const needsUpgrade = staleKinds.length > 0;
+  // A menu-triggered re-analysis shows a plain "Analyzing…" pill instead of the offer
+  // banner (the "older prompts" pitch is redundant once the user chose Re-analyze).
+  const analyzingFromMenu = upgrading && analyzeSource === "menu";
   const showUpgradeBanner =
-    (note?.transcript && unseenStaleAnalyses(note).length > 0) || upgrading || !!upgradeError;
+    !analyzingFromMenu &&
+    ((note?.transcript && unseenStaleAnalyses(note).length > 0) || upgrading || !!upgradeError);
 
   /** Close the upgrade banner: remember the versions it was offering, so it only returns
    *  when a future prompt bump moves past them. */
@@ -717,11 +725,12 @@ export default function App() {
     setNote((prev) => (prev && prev.id === target.id ? { ...prev, upgradeDismissed } : prev));
   }
 
-  async function handleUpgrade() {
+  async function handleUpgrade(source: "banner" | "menu" = "banner") {
     const target = note;
     if (!target?.transcript) return;
     const stale = staleAnalyses(target);
     if (!stale.length) return;
+    setAnalyzeSource(source);
     setUpgrading(true);
     setUpgradeError(null);
     try {
@@ -1189,7 +1198,7 @@ export default function App() {
                   currentFolder={note.folder}
                   combined={isCombined(note)}
                   canReanalyze={needsUpgrade && !upgrading && keysReady}
-                  onReanalyze={() => void handleUpgrade()}
+                  onReanalyze={() => void handleUpgrade("menu")}
                   onCombine={() => setCombineOpen(true)}
                   onMove={(folder) => {
                     if (folder) rememberFolder(folder, project);
@@ -1272,6 +1281,13 @@ export default function App() {
                   onEnsureSummaryVariant={ensureSummaryVariant}
                 />
 
+                {analyzingFromMenu && !combined && (
+                  <div className="analyzing-pill">
+                    <span className="analyzing-spinner" />
+                    Analyzing…
+                  </div>
+                )}
+
                 {showUpgradeBanner && !combined && (
                   <div className="upgrade-banner">
                     <span>
@@ -1281,7 +1297,7 @@ export default function App() {
                     </span>
                     <button
                       className="ghost-btn"
-                      onClick={handleUpgrade}
+                      onClick={() => void handleUpgrade("banner")}
                       disabled={upgrading || !keysReady || !needsUpgrade}
                     >
                       {upgrading ? "Upgrading…" : "Upgrade note"}

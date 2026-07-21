@@ -651,3 +651,30 @@ h2.memo-title:hover {
 .upgrade-banner .ghost-btn {
   background: var(--surface);
 }
+
+/* The compact progress pill for a ⋯-menu Re-analyze — no offer copy, just a spinner. */
+.analyzing-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 22px;
+  padding: 8px 14px;
+  background: rgba(37, 99, 235, 0.06);
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 10px;
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+.analyzing-spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(37, 99, 235, 0.25);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: analyzing-spin 0.7s linear infinite;
+}
+@keyframes analyzing-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
