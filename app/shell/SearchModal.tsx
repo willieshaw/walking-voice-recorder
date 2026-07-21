@@ -1,6 +1,8 @@
-// ⌘K search: a client-side filter over titles, tags, and full transcript text.
+// ⌘K search: a client-side filter over titles, tags, and full transcript text. Before
+// any typing, the modal isn't empty — it offers the most recent notes as launch points.
 import { useEffect, useRef, useState } from "react";
-import { searchNotes, type SearchHit } from "../lib/notesDb";
+import { listNotes, searchNotes, type SearchHit } from "../lib/notesDb";
+import { DEFAULT_PROJECT } from "../lib/projects";
 import { formatNoteDate } from "./LibraryFeed";
 import "./search-modal.css";
 
@@ -16,11 +18,35 @@ export function SearchModal({
 }) {
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
+  // The empty-query default: latest notes in this project, shaped like search hits.
+  const [recent, setRecent] = useState<SearchHit[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listNotes().then((all) => {
+      if (cancelled) return;
+      setRecent(
+        all
+          .filter((s) => !s.deletedAt && (s.project ?? DEFAULT_PROJECT) === project)
+          .slice(0, 6)
+          .map((s) => ({
+            id: s.id,
+            title: s.title,
+            createdAt: s.createdAt,
+            folder: s.folder,
+            snippet: s.snippet,
+          })),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [project]);
 
   // Debounced: each search reads every note, so run it once the typing settles rather
   // than on every keystroke.
@@ -53,7 +79,8 @@ export function SearchModal({
           <span className="kbd">esc</span>
         </div>
         <div className="sm-results">
-          {hits.map((h) => (
+          {!query.trim() && recent.length > 0 && <div className="sm-label">Recent</div>}
+          {(query.trim() ? hits : recent).map((h) => (
             <a
               key={h.id}
               className="sm-hit"

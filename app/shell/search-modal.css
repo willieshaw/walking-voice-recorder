@@ -56,6 +56,13 @@
   overflow-y: auto;
   padding: 8px;
 }
+/* Section label above the empty-query default (recent notes). */
+.sm-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  padding: 8px 12px 4px;
+}
 .sm-hit {
   display: block;
   padding: 11px 12px;
