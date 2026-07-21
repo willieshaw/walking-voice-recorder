@@ -1427,6 +1427,9 @@ function SidebarNote({
           if (e.key === "Enter" || e.key === " ") onOpen(s.id);
         }}
       >
+        {/* Folder rows have a 14px icon + 8px gap before their text; this spacer matches
+         *  that offset so note titles line up with folder names on the same left edge. */}
+        <span className="note-icon-spacer" aria-hidden />
         <EditableTitle
           as="span"
           className="note-title"
