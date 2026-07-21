@@ -26,10 +26,13 @@ export function DropZone({
   onUpload,
   disabled = false,
   compact = false,
+  onNeedKeys,
 }: {
   onUpload: (file: File) => Promise<void>;
   disabled?: boolean;
   compact?: boolean;
+  /** Clicked while disabled (no API key yet) — offer to add one. */
+  onNeedKeys?: () => void;
 }) {
   const [over, setOver] = useState(false);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
@@ -50,12 +53,31 @@ export function DropZone({
   const blocked = disabled || working;
 
   if (disabled && status.kind === "idle") {
+    const needKeys = () => onNeedKeys?.();
+    const clickable = onNeedKeys ? " dz-clickable" : "";
     return compact ? (
-      <div className="dz dz-compact dz-disabled" title="Add your API keys to record">
+      <div
+        className={`dz dz-compact dz-disabled${clickable}`}
+        title="Add your API keys to record"
+        role={onNeedKeys ? "button" : undefined}
+        tabIndex={onNeedKeys ? 0 : undefined}
+        onClick={needKeys}
+        onKeyDown={(e) => {
+          if (onNeedKeys && (e.key === "Enter" || e.key === " ")) needKeys();
+        }}
+      >
         <UploadIcon />
       </div>
     ) : (
-      <div className="dz dz-disabled">
+      <div
+        className={`dz dz-disabled${clickable}`}
+        role={onNeedKeys ? "button" : undefined}
+        tabIndex={onNeedKeys ? 0 : undefined}
+        onClick={needKeys}
+        onKeyDown={(e) => {
+          if (onNeedKeys && (e.key === "Enter" || e.key === " ")) needKeys();
+        }}
+      >
         <span className="dz-msg">Add your API keys to record.</span>
       </div>
     );

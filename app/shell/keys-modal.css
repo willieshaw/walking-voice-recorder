@@ -1,0 +1,55 @@
+/* The key dialog: one clean card holding the embedded key panel + a footer link. The
+ * scrim itself is shared (.modal-scrim); we only re-center for this narrower card. */
+.km-scrim {
+  align-items: center;
+  padding-top: 0;
+}
+.km-card {
+  width: min(92vw, 30rem);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+  animation: km-pop 0.14s ease;
+}
+@keyframes km-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* Strip the embedded panel's own card chrome — km-card is the card now. */
+.km-card .sk {
+  max-width: none;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  padding: 1.7rem 1.8rem 1.5rem;
+}
+.km-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 1.8rem;
+  border-top: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.015);
+}
+.km-link {
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 5px 4px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.km-link:hover {
+  text-decoration: underline;
+}

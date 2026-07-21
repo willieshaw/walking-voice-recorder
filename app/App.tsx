@@ -11,6 +11,7 @@ import { DigestCard } from "./shell/DigestCard";
 import { MemoMenu } from "./shell/MemoMenu";
 import { CombineModal } from "./shell/CombineModal";
 import { SettingsPage } from "./shell/SettingsPage";
+import { KeysModal } from "./shell/KeysModal";
 import { isCombined, resolveCombined, type Combined } from "@core/combine";
 
 /** The subset of an annotation a user can mutate (currently just a to-do's done state). */
@@ -82,6 +83,7 @@ export default function App() {
   const [combineOpen, setCombineOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [keysReady, setKeysReady] = useState(hasKeys());
+  const [keysModalOpen, setKeysModalOpen] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   const [upgradeError, setUpgradeError] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -618,7 +620,12 @@ export default function App() {
               <path d="M9.5 4v16" />
             </svg>
           </button>
-          <DropZone onUpload={handleUpload} disabled={!keysReady} compact />
+          <DropZone
+            onUpload={handleUpload}
+            disabled={!keysReady}
+            compact
+            onNeedKeys={() => setKeysModalOpen(true)}
+          />
           <button
             className="rail-btn rail-btn-search"
             title="Search notes (⌘K)"
@@ -667,7 +674,11 @@ export default function App() {
             </svg>
           </button>
         </div>
-        <DropZone onUpload={handleUpload} disabled={!keysReady} />
+        <DropZone
+          onUpload={handleUpload}
+          disabled={!keysReady}
+          onNeedKeys={() => setKeysModalOpen(true)}
+        />
         <button className="side-search" onClick={() => setSearchOpen(true)}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2">
             <circle cx="11" cy="11" r="7" />
@@ -1029,6 +1040,19 @@ export default function App() {
             setFilterFolder(f);
             setView("library");
           }}
+        />
+      )}
+      {keysModalOpen && (
+        <KeysModal
+          onSaved={() => {
+            setKeysReady(hasKeys());
+            setKeysModalOpen(false);
+          }}
+          onViewSettings={() => {
+            setKeysModalOpen(false);
+            setView("settings");
+          }}
+          onClose={() => setKeysModalOpen(false)}
         />
       )}
     </div>

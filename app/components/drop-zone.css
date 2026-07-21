@@ -44,6 +44,15 @@
 .dz-disabled:hover {
   border-color: rgba(0, 0, 0, 0.16);
 }
+/* When it can open the key dialog, the placeholder reads as an affordance. */
+.dz-clickable {
+  cursor: pointer;
+}
+.dz-clickable:hover {
+  opacity: 1;
+  color: var(--text-2);
+  border-color: rgba(0, 0, 0, 0.22);
+}
 .dz-idle {
   display: flex;
   flex-direction: column;
