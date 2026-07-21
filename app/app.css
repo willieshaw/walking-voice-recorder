@@ -223,7 +223,9 @@ body {
 }
 /* Breathing room between rows so two adjacent hover/active backgrounds read as two
  * rows rather than fusing into one block. */
-.side-folder + .side-folder {
+/* Space between folder rows. They're each wrapped in a [data-reorder] div now (drag to
+ * reorder), so gap the list's children directly — same 2px best-practice as .note-list. */
+.side-folder-list > * + * {
   margin-top: 2px;
 }
 .side-folder:hover {
