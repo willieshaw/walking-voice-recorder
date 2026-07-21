@@ -13,7 +13,11 @@ import { getCombinedPeaks, getPeaks } from "../lib/peaks";
 import "./sticky-player.css";
 
 const WAVE_HEIGHT = 32;
-const BUCKETS = 110;
+// Decode the audio to a high-resolution peak array once; the number of bars actually drawn
+// is chosen from the container width at a fixed pitch, so the waveform keeps a constant bar
+// density (and re-densifies on resize) instead of stretching the same bars ever thinner.
+const SOURCE_BUCKETS = 500;
+const BAR_PITCH = 6; // px per bar, including its gap
 const STICKY_TOP = 12; // must match `.sp-sticky { top }` in sticky-player.css
 
 interface Chapter {
@@ -97,8 +101,8 @@ export function StickyPlayer({ note, segments }: { note: Note; segments?: Combin
     setPeaks(null);
     const load =
       segments && segments.length
-        ? getCombinedPeaks(segments, BUCKETS)
-        : getPeaks(note.id, note.audioUrl, BUCKETS);
+        ? getCombinedPeaks(segments, SOURCE_BUCKETS)
+        : getPeaks(note.id, note.audioUrl, SOURCE_BUCKETS);
     load
       .then((p) => !cancelled && setPeaks(p))
       .catch(() => {}); // no waveform (undecodable audio) — the bars row still works
@@ -125,14 +129,21 @@ export function StickyPlayer({ note, segments }: { note: Note; segments?: Combin
 
       const played = cssVar("--text-2") || "#52525b";
       const unplayed = "#d9d9de";
-      const n = peaks.length;
+      // Bar count follows the width (constant density), capped by the source resolution.
+      const src = peaks.length;
+      const n = Math.max(8, Math.min(src, Math.round(width / BAR_PITCH)));
       const slot = width / n;
       const barW = Math.max(slot * 0.6, 1.5);
       const playedFrac = Math.min(currentTime / duration, 1);
 
       g.clearRect(0, 0, width, WAVE_HEIGHT);
       for (let b = 0; b < n; b++) {
-        const h = Math.max(3, peaks[b] * WAVE_HEIGHT);
+        // Downsample: this display bar is the loudest source peak in its slice.
+        let peak = 0;
+        const from = Math.floor((b / n) * src);
+        const to = Math.max(from + 1, Math.floor(((b + 1) / n) * src));
+        for (let i = from; i < to; i++) if (peaks[i] > peak) peak = peaks[i];
+        const h = Math.max(3, peak * WAVE_HEIGHT);
         const x = b * slot + (slot - barW) / 2;
         const y = (WAVE_HEIGHT - h) / 2;
         g.fillStyle = (b + 0.5) / n <= playedFrac ? played : unplayed;
@@ -145,7 +156,11 @@ export function StickyPlayer({ note, segments }: { note: Note; segments?: Combin
     draw();
     const ro = new ResizeObserver(draw);
     ro.observe(wrap);
-    return () => ro.disconnect();
+    window.addEventListener("resize", draw); // belt-and-suspenders for viewport width changes
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", draw);
+    };
   }, [peaks, currentTime, duration]);
 
   return (
