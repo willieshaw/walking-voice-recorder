@@ -240,6 +240,25 @@ body {
   color: var(--accent);
   outline: 1.5px dashed rgba(37, 99, 235, 0.5);
 }
+
+/* Drag-to-reorder: the accent slot line marking where a drop would land. */
+.side-insert-line {
+  height: 2px;
+  margin: 1px 6px;
+  background: var(--accent);
+  border-radius: 1px;
+  list-style: none;
+  pointer-events: none;
+}
+/* While something is mid-drag with nothing pinned yet, the Pinned section shows an empty
+ * dashed target so there's somewhere to drop. */
+.side-pin-empty {
+  min-height: 34px;
+  margin: 0 2px 6px;
+  border: 1.5px dashed rgba(37, 99, 235, 0.45);
+  border-radius: 8px;
+  background: rgba(37, 99, 235, 0.05);
+}
 .side-folder svg {
   flex: none;
   color: var(--muted);

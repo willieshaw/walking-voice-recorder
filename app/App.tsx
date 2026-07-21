@@ -19,11 +19,29 @@ type AnnotationPatch = Partial<Pick<Annotation, "done">>;
 
 /** One committed paragraph edit on the ⌘Z stack: enough to put the old text back. */
 interface EditEntry {
+  kind: "edit";
   noteId: string;
   mode: "raw" | "clean";
   chunkId: string;
   text: string;
 }
+
+/** Everything a sidebar drag can touch, snapshotted whole. Undo/redo just re-applies a
+ *  snapshot — no per-action inverse logic to get subtly wrong. `notes` holds only the
+ *  labels of notes the action moved. */
+interface SidebarSnapshot {
+  folderRegistry: string[];
+  folderPins: string[];
+  pinnedOrder: string[];
+  notes: { id: string; folder?: string; pinned?: boolean }[];
+}
+/** One sidebar organization change (drag-file, drag-pin, reorder) on the ⌘Z stack. */
+interface SidebarEntry {
+  kind: "sidebar";
+  prev: SidebarSnapshot;
+  next: SidebarSnapshot;
+}
+type HistoryEntry = EditEntry | SidebarEntry;
 import { SearchModal } from "./shell/SearchModal";
 import { FoldersModal } from "./shell/FoldersModal";
 import { TagChips } from "./shell/TagChips";
@@ -32,9 +50,14 @@ import {
   allFolders,
   moveFolderRegistry,
   pinnedFolders,
+  pinnedOrder,
   rememberFolder,
   renameFolder,
+  setFolderOrder,
   setFolderPinned,
+  setFolderPinsList,
+  setPinnedOrder,
+  storedFolders,
 } from "./lib/folders";
 import {
   DEFAULT_PROJECT,
@@ -152,8 +175,8 @@ export default function App() {
   // Revert lives on the chunk itself as `originalText`). Refs so the global key listener
   // registered once always sees the live stacks; noteRef mirrors the open note for the same
   // reason. Entries are tagged by noteId and only apply to the note that's open.
-  const undoStack = useRef<EditEntry[]>([]);
-  const redoStack = useRef<EditEntry[]>([]);
+  const undoStack = useRef<HistoryEntry[]>([]);
+  const redoStack = useRef<HistoryEntry[]>([]);
   const noteRef = useRef<Note | null>(null);
   noteRef.current = note;
   const combinedRef = useRef(false);
@@ -176,14 +199,14 @@ export default function App() {
         e.preventDefault();
         setSearchOpen((v) => !v);
       } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
-        // ⌘Z / ⇧⌘Z: undo/redo committed paragraph edits on the open note. Inside an input
-        // or textarea the browser's native undo should win — don't intercept.
+        // ⌘Z / ⇧⌘Z: undo/redo paragraph edits (open note) and sidebar drags (anywhere).
+        // Inside an input or textarea the browser's native undo should win — don't
+        // intercept.
         const t = e.target as HTMLElement | null;
         if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
-        if (!noteRef.current || combinedRef.current) return;
         e.preventDefault();
-        if (e.shiftKey) void stepHistory(redoStack.current, undoStack.current);
-        else void stepHistory(undoStack.current, redoStack.current);
+        if (e.shiftKey) void stepHistory(redoStack.current, undoStack.current, "redo");
+        else void stepHistory(undoStack.current, redoStack.current, "undo");
       } else if (e.key === "Escape") {
         setSearchOpen(false);
         setFoldersOpen(false);
@@ -204,17 +227,140 @@ export default function App() {
   const folders = allFolders(live.map((s) => s.folder), project);
   // Pinned folders surface in the sidebar's Pinned section (and leave the Folders list).
   const pinnedF = pinnedFolders(project).filter((f) => folders.includes(f));
+  // The Folders list shows the registry order minus pinned folders (drag to reorder).
+  const visibleFolders = folders.filter((f) => !pinnedF.includes(f));
   void folderBump;
   void projectBump;
+
+  // The Pinned section: folders and notes interleaved, ordered by the overlay list
+  // (unknown/new pins keep their derived order at the end — the sort is stable).
+  type PinEntry =
+    | { key: string; kind: "folder"; name: string }
+    | { key: string; kind: "note"; summary: NoteSummary };
+  const pinOrder = pinnedOrder(project);
+  const pinEntries: PinEntry[] = [
+    ...pinnedF.map((f) => ({ key: `f:${f}`, kind: "folder" as const, name: f })),
+    ...live
+      .filter((s) => s.pinned)
+      .map((s) => ({ key: `n:${s.id}`, kind: "note" as const, summary: s })),
+  ].sort((a, b) => {
+    const ia = pinOrder.indexOf(a.key);
+    const ib = pinOrder.indexOf(b.key);
+    return (ia < 0 ? pinOrder.length : ia) - (ib < 0 ? pinOrder.length : ib);
+  });
 
   function toggleFolderPin(f: string) {
     setFolderPinned(f, project, !pinnedFolders(project).includes(f));
     setFolderBump((b) => b + 1);
   }
 
+  // ── Sidebar drag: reorder + cross-section moves ────────────────────────────────────
+  // What kind of row is mid-drag (drives the empty Pinned target and reorder hints), and
+  // where a drop would land. Set/cleared by document-level listeners so every drag end —
+  // wherever it happens — cleans up.
+  const [dragKind, setDragKind] = useState<null | "note" | "folder">(null);
+  const [dropHint, setDropHint] = useState<{ list: "folders" | "pinned"; index: number } | null>(
+    null,
+  );
+  useEffect(() => {
+    const onStart = (e: DragEvent) => {
+      const t = Array.from(e.dataTransfer?.types ?? []);
+      if (t.includes("text/wvr-folder")) setDragKind("folder");
+      else if (t.includes("text/wvr-note")) setDragKind("note");
+    };
+    const onEnd = () => {
+      setDragKind(null);
+      setDropHint(null);
+      setDropFolder(null);
+    };
+    document.addEventListener("dragstart", onStart);
+    document.addEventListener("dragend", onEnd);
+    document.addEventListener("drop", onEnd);
+    return () => {
+      document.removeEventListener("dragstart", onStart);
+      document.removeEventListener("dragend", onEnd);
+      document.removeEventListener("drop", onEnd);
+    };
+  }, []);
+
+  /** Which slot (0..n) a pointer at `y` targets among the container's reorderable rows. */
+  function insertionIndex(container: HTMLElement, y: number, selector: string): number {
+    const rows = [...container.querySelectorAll(selector)].filter(
+      (c) => !c.classList.contains("side-insert-line"),
+    );
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i].getBoundingClientRect();
+      if (y < r.top + r.height / 2) return i;
+    }
+    return rows.length;
+  }
+
+  /** Move/insert `item` at slot `index` of `displayed` (indices counted with the item
+   *  still in place, as insertionIndex sees it). */
+  function placeAt<T>(displayed: T[], item: T, index: number): T[] {
+    const orig = displayed.indexOf(item);
+    const without = displayed.filter((x) => x !== item);
+    const at = Math.min(orig >= 0 && orig < index ? index - 1 : index, without.length);
+    without.splice(at, 0, item);
+    return without;
+  }
+
+  /** Drop of a folder row on the Folders list: reorder (unpinning it if it came from the
+   *  Pinned section). The registry's array order is the display order. */
+  function dropFolderOnFolders(name: string, index: number) {
+    void recordSidebar([], () => {
+      const nextVisible = placeAt(visibleFolders, name, index);
+      // Registry = visible order, then pinned folders (their display order lives in the
+      // pinned overlay, so their registry position only matters for round-tripping).
+      const stillPinned = pinnedF.filter((f) => f !== name);
+      setFolderOrder([...nextVisible, ...stillPinned], project);
+      if (pinnedF.includes(name)) {
+        setFolderPinned(name, project, false);
+        setPinnedOrder(pinOrder.filter((k) => k !== `f:${name}`), project);
+      }
+      setFolderBump((b) => b + 1);
+    });
+  }
+
+  /** Drop on the Pinned section: pin (if new) and place at the slot. */
+  function dropOnPinned(e: React.DragEvent, index: number) {
+    const folderName = e.dataTransfer.getData("text/wvr-folder");
+    const noteId = e.dataTransfer.getData("text/wvr-note");
+    const keys = pinEntries.map((p) => p.key);
+    if (folderName) {
+      void recordSidebar([], () => {
+        if (!pinnedF.includes(folderName)) setFolderPinned(folderName, project, true);
+        setPinnedOrder(placeAt(keys, `f:${folderName}`, index), project);
+        setFolderBump((b) => b + 1);
+      });
+    } else if (noteId) {
+      void recordSidebar([noteId], async () => {
+        const s = live.find((x) => x.id === noteId);
+        if (s && !s.pinned) await patchLabelsRecorded(noteId, { pinned: true });
+        setPinnedOrder(placeAt(keys, `n:${noteId}`, index), project);
+        setFolderBump((b) => b + 1);
+      });
+    }
+  }
+
+  /** Splice the accent insertion line into a rendered row list while dragging over it. */
+  function withInsertLine(nodes: React.ReactNode[], list: "folders" | "pinned", tag: "div" | "li") {
+    if (dropHint?.list !== list) return nodes;
+    const line =
+      tag === "li" ? (
+        <li key="__line" className="side-insert-line" />
+      ) : (
+        <div key="__line" className="side-insert-line" />
+      );
+    const out = [...nodes];
+    out.splice(Math.min(dropHint.index, out.length), 0, line);
+    return out;
+  }
+
   /** One sidebar folder row — shared by the Pinned section and the Folders list so both
-   *  filter, pin, and accept note drops identically. */
-  const folderRow = (f: string) => (
+   *  filter and pin identically. `fileTarget` rows also accept note drops (filing); in
+   *  the Pinned section that's off, so note drags fall through to pin-and-place. */
+  const folderRow = (f: string, fileTarget = true) => (
     <SidebarFolder
       key={f}
       name={f}
@@ -227,17 +373,30 @@ export default function App() {
         setView("library");
       }}
       onTogglePin={() => toggleFolderPin(f)}
-      onDragOver={(e) => {
-        e.preventDefault();
-        setDropFolder(f);
-      }}
-      onDragLeave={() => setDropFolder((v) => (v === f ? null : v))}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDropFolder(null);
-        const id = e.dataTransfer.getData("text/wvr-note");
-        if (id) void patchLabels(id, { folder: f });
-      }}
+      onDragOver={
+        fileTarget
+          ? (e) => {
+              // Folder drags pass through to the list's reorder handling.
+              if (!Array.from(e.dataTransfer.types).includes("text/wvr-note")) return;
+              e.preventDefault();
+              e.stopPropagation();
+              setDropFolder(f);
+            }
+          : undefined
+      }
+      onDragLeave={fileTarget ? () => setDropFolder((v) => (v === f ? null : v)) : undefined}
+      onDrop={
+        fileTarget
+          ? (e) => {
+              const id = e.dataTransfer.getData("text/wvr-note");
+              if (!id) return;
+              e.preventDefault();
+              e.stopPropagation();
+              setDropFolder(null);
+              void recordSidebar([id], () => patchLabelsRecorded(id, { folder: f }));
+            }
+          : undefined
+      }
     />
   );
 
@@ -422,22 +581,84 @@ export default function App() {
     if (!target) return;
     const prev = chunkTextOf(target, mode, chunkId);
     if (prev === undefined || prev === text) return;
-    undoStack.current.push({ noteId: target.id, mode, chunkId, text: prev });
+    undoStack.current.push({ kind: "edit", noteId: target.id, mode, chunkId, text: prev });
     redoStack.current = [];
     await applyEdit(target, mode, chunkId, text);
   }
 
-  /** Pop the most recent edit for the OPEN note off `from`, stash the inverse on `to`,
-   *  and re-apply the stored text. Powers both ⌘Z (undo) and ⇧⌘Z (redo). */
-  async function stepHistory(from: EditEntry[], to: EditEntry[]) {
+  /** Snapshot everything a sidebar drag can touch (for the given notes' labels). */
+  function captureSidebar(noteIds: string[]): SidebarSnapshot {
+    return {
+      folderRegistry: storedFolders(project),
+      folderPins: pinnedFolders(project),
+      pinnedOrder: pinnedOrder(project),
+      notes: noteIds.map((id) => {
+        const s = summaries.find((x) => x.id === id);
+        return { id, folder: s?.folder, pinned: s?.pinned };
+      }),
+    };
+  }
+
+  /** Re-apply a sidebar snapshot wholesale — the undo/redo primitive. */
+  async function applySidebar(snap: SidebarSnapshot) {
+    setFolderOrder(snap.folderRegistry, project);
+    setFolderPinsList(snap.folderPins, project);
+    setPinnedOrder(snap.pinnedOrder, project);
+    for (const n of snap.notes) await patchLabels(n.id, { folder: n.folder, pinned: n.pinned });
+    setFolderBump((b) => b + 1);
+  }
+
+  /** Run one sidebar mutation and put its before/after on the ⌘Z stack. */
+  async function recordSidebar(noteIds: string[], mutate: () => void | Promise<void>) {
+    const prev = captureSidebar(noteIds);
+    await mutate();
+    // `summaries` in this closure is pre-mutation state, so read labels from `prev` and
+    // overlay what the mutation just did via a fresh capture of the stores; note labels
+    // changed through patchLabels are re-read from the DB-mirrored setter's argument —
+    // simplest correct source is the stores plus the patch we just applied, which the
+    // caller encodes by mutating before this capture runs.
+    const next: SidebarSnapshot = {
+      folderRegistry: storedFolders(project),
+      folderPins: pinnedFolders(project),
+      pinnedOrder: pinnedOrder(project),
+      notes: prev.notes.map((n) => ({ ...n, ...pendingLabels.current.get(n.id) })),
+    };
+    pendingLabels.current.clear();
+    undoStack.current.push({ kind: "sidebar", prev, next });
+    redoStack.current = [];
+  }
+  // Labels applied during the current recordSidebar mutation (state updates are async, so
+  // the "after" snapshot can't read them back from `summaries` yet).
+  const pendingLabels = useRef(new Map<string, { folder?: string; pinned?: boolean }>());
+
+  /** patchLabels + remember what changed, for recordSidebar's "after" snapshot. */
+  async function patchLabelsRecorded(id: string, patch: { folder?: string; pinned?: boolean }) {
+    pendingLabels.current.set(id, patch);
+    await patchLabels(id, patch);
+  }
+
+  /** Pop the most recent applicable entry off `from`, apply its other side, and move it
+   *  to `to`. Edits apply only to the open note; sidebar entries apply anywhere. */
+  async function stepHistory(from: HistoryEntry[], to: HistoryEntry[], dir: "undo" | "redo") {
     const target = noteRef.current;
-    if (!target) return;
-    const i = from.map((e) => e.noteId).lastIndexOf(target.id);
+    let i = -1;
+    for (let j = from.length - 1; j >= 0; j--) {
+      const e = from[j];
+      if (e.kind === "sidebar" || (target && !combinedRef.current && e.noteId === target.id)) {
+        i = j;
+        break;
+      }
+    }
     if (i < 0) return;
     const [entry] = from.splice(i, 1);
-    const current = chunkTextOf(target, entry.mode, entry.chunkId);
+    if (entry.kind === "sidebar") {
+      await applySidebar(dir === "undo" ? entry.prev : entry.next);
+      to.push(entry);
+      return;
+    }
+    const current = chunkTextOf(target!, entry.mode, entry.chunkId);
     if (current !== undefined) to.push({ ...entry, text: current });
-    await applyEdit(target, entry.mode, entry.chunkId, entry.text);
+    await applyEdit(target!, entry.mode, entry.chunkId, entry.text);
   }
 
   /** Soft delete: stamp `deletedAt` so the note moves to Settings › Recently deleted.
@@ -689,26 +910,68 @@ export default function App() {
             <span className="kbd-cmd">⌘</span>K
           </span>
         </button>
-        {(pinnedF.length > 0 || live.some((s) => s.pinned)) && (
+        {(pinEntries.length > 0 || dragKind !== null) && (
           <>
-            <div className="side-sec-head side-sec-static">Pinned</div>
-            {pinnedF.length > 0 && <div className="side-folder-list">{pinnedF.map(folderRow)}</div>}
-            {live.some((s) => s.pinned) && (
-              <ul className="note-list note-list-pinned">
-                {live
-                  .filter((s) => s.pinned)
-                  .map((s) => (
+            <div
+              className="side-sec-head side-sec-static"
+              // Dropping on the header pins at the top of the section.
+              onDragOver={(e) => {
+                if (dragKind === null) return;
+                e.preventDefault();
+                setDropHint({ list: "pinned", index: 0 });
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                dropOnPinned(e, 0);
+              }}
+            >
+              Pinned
+            </div>
+            <ul
+              className={`note-list note-list-pinned${
+                pinEntries.length === 0 ? " side-pin-empty" : ""
+              }`}
+              onDragOver={(e) => {
+                if (dragKind === null) return;
+                e.preventDefault();
+                setDropHint({
+                  list: "pinned",
+                  index: insertionIndex(e.currentTarget, e.clientY, ":scope > [data-reorder]"),
+                });
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node))
+                  setDropHint((h) => (h?.list === "pinned" ? null : h));
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                dropOnPinned(e, dropHint?.list === "pinned" ? dropHint.index : pinEntries.length);
+              }}
+            >
+              {withInsertLine(
+                pinEntries.map((p) =>
+                  p.kind === "folder" ? (
+                    <li key={p.key} data-reorder="">
+                      {folderRow(p.name, false)}
+                    </li>
+                  ) : (
                     <SidebarNote
-                      key={s.id}
-                      summary={s}
-                      selected={s.id === selectedId && view === "memo"}
+                      key={p.key}
+                      summary={p.summary}
+                      selected={p.summary.id === selectedId && view === "memo"}
                       onOpen={openMemo}
                       onRename={handleRename}
-                      onTogglePin={() => void patchLabels(s.id, { pinned: !s.pinned })}
+                      onTogglePin={() =>
+                        void patchLabels(p.summary.id, { pinned: !p.summary.pinned })
+                      }
+                      reorderable
                     />
-                  ))}
-              </ul>
-            )}
+                  ),
+                ),
+                "pinned",
+                "li",
+              )}
+            </ul>
           </>
         )}
         <div className="side-sec-row">
@@ -742,7 +1005,31 @@ export default function App() {
           </button>
         </div>
         {openSecs.folders && (
-          <div className="side-folder-list">
+          <div
+            className="side-folder-list"
+            // Folder drags reorder this list (note drags are claimed by the rows).
+            onDragOver={(e) => {
+              if (dragKind !== "folder") return;
+              e.preventDefault();
+              setDropHint({
+                list: "folders",
+                index: insertionIndex(e.currentTarget, e.clientY, ":scope > [data-reorder]"),
+              });
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node))
+                setDropHint((h) => (h?.list === "folders" ? null : h));
+            }}
+            onDrop={(e) => {
+              const name = e.dataTransfer.getData("text/wvr-folder");
+              if (!name) return;
+              e.preventDefault();
+              dropFolderOnFolders(
+                name,
+                dropHint?.list === "folders" ? dropHint.index : visibleFolders.length,
+              );
+            }}
+          >
             <a
               className={`side-folder${
                 filterFolder === null && view === "library" ? " side-folder-active" : ""
@@ -754,15 +1041,20 @@ export default function App() {
                 setView("library");
               }}
               onDragOver={(e) => {
-                e.preventDefault(); // dropping on All notes clears the note's folder
+                // dropping on All notes clears the note's folder (note drags only)
+                if (!Array.from(e.dataTransfer.types).includes("text/wvr-note")) return;
+                e.preventDefault();
+                e.stopPropagation();
                 setDropFolder("");
               }}
               onDragLeave={() => setDropFolder((v) => (v === "" ? null : v))}
               onDrop={(e) => {
-                e.preventDefault();
-                setDropFolder(null);
                 const id = e.dataTransfer.getData("text/wvr-note");
-                if (id) void patchLabels(id, { folder: undefined });
+                if (!id) return;
+                e.preventDefault();
+                e.stopPropagation();
+                setDropFolder(null);
+                void recordSidebar([id], () => patchLabelsRecorded(id, { folder: undefined }));
               }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
@@ -794,7 +1086,15 @@ export default function App() {
                 />
               </div>
             )}
-            {folders.filter((f) => !pinnedF.includes(f)).map(folderRow)}
+            {withInsertLine(
+              visibleFolders.map((f) => (
+                <div key={f} data-reorder="">
+                  {folderRow(f)}
+                </div>
+              )),
+              "folders",
+              "div",
+            )}
           </div>
         )}
         {live.length === 0 ? (
@@ -1084,15 +1384,18 @@ function SidebarNote({
   onOpen,
   onRename,
   onTogglePin,
+  reorderable = false,
 }: {
   summary: NoteSummary;
   selected: boolean;
   onOpen: (id: string) => void;
   onRename: (id: string, title: string) => void;
   onTogglePin: () => void;
+  /** Marks this row as a slot in a drag-reorderable list (the Pinned section). */
+  reorderable?: boolean;
 }) {
   return (
-    <li>
+    <li data-reorder={reorderable ? "" : undefined}>
       <div
         className={`note-item${selected ? " selected" : ""}`}
         role="button"
@@ -1150,9 +1453,9 @@ function SidebarFolder({
   pinned: boolean;
   onOpen: () => void;
   onTogglePin: () => void;
-  onDragOver: React.DragEventHandler<HTMLAnchorElement>;
-  onDragLeave: React.DragEventHandler<HTMLAnchorElement>;
-  onDrop: React.DragEventHandler<HTMLAnchorElement>;
+  onDragOver?: React.DragEventHandler<HTMLAnchorElement>;
+  onDragLeave?: React.DragEventHandler<HTMLAnchorElement>;
+  onDrop?: React.DragEventHandler<HTMLAnchorElement>;
 }) {
   return (
     <a
@@ -1161,6 +1464,12 @@ function SidebarFolder({
       }`}
       role="button"
       tabIndex={0}
+      // Draggable: reorder within Folders, or into/within the Pinned section.
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/wvr-folder", name);
+        e.dataTransfer.effectAllowed = "move";
+      }}
       onClick={onOpen}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
