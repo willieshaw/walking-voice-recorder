@@ -94,6 +94,25 @@ export function SettingsPage({
     }
   }
 
+  /** DEV ONLY: store the current library as the on-disk seed the app auto-restores from
+   *  when the dev browser's storage gets wiped (see /api/dev-seed in vite.config.ts). */
+  async function saveDevSeed() {
+    setBusy("export");
+    setBackupStatus(null);
+    try {
+      const { blob, count } = await buildBackup();
+      const res = await fetch("/api/dev-seed", { method: "POST", body: blob });
+      if (!res.ok) throw new Error(`Seed save failed (HTTP ${res.status}).`);
+      setBackupStatus(
+        `Dev seed saved (${count} note${count === 1 ? "" : "s"}) — auto-restores whenever dev storage is wiped.`,
+      );
+    } catch (e) {
+      setBackupStatus(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <div className="sp">
       <button className="back-btn" onClick={onBack}>
@@ -169,6 +188,16 @@ export function SettingsPage({
         >
           {busy === "restore" ? "Restoring…" : "Restore…"}
         </button>
+        {import.meta.env.DEV && (
+          <button
+            className="sp-backup-btn"
+            title="Dev only: auto-restores when the dev browser's storage is wiped"
+            onClick={() => void saveDevSeed()}
+            disabled={busy !== null || noteCount === 0}
+          >
+            Save as dev seed
+          </button>
+        )}
         <input
           ref={fileRef}
           type="file"

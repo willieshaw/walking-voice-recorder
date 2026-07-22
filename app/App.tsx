@@ -69,6 +69,7 @@ import {
   setActiveProjectStored,
 } from "./lib/projects";
 import { hasKeys } from "./lib/keys";
+import { restoreBackup } from "./lib/backup";
 import {
   buildDirectives,
   buildKeyMoments,
@@ -189,9 +190,23 @@ export default function App() {
   const [notesLoaded, setNotesLoaded] = useState(false);
   useEffect(() => {
     // Drop trashed notes whose 30-day window lapsed, then load the rest.
-    purgeExpired()
+    void purgeExpired()
       .then(listNotes)
-      .then((s) => {
+      .then(async (s) => {
+        // DEV: the preview browser's storage partition occasionally rotates, wiping
+        // IndexedDB. If we boot empty and an on-disk seed archive exists, restore it —
+        // so test notes survive storage wipes without regenerating them.
+        if (import.meta.env.DEV && s.length === 0) {
+          try {
+            const res = await fetch("/api/dev-seed");
+            if (res.ok) {
+              await restoreBackup(new File([await res.blob()], "seed.zip"));
+              s = await listNotes();
+            }
+          } catch {
+            // no seed saved yet — a normal empty start
+          }
+        }
         setSummaries(s);
         setNotesLoaded(true);
       });

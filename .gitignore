@@ -12,3 +12,4 @@ app/public/notes/*
 
 # macOS
 .DS_Store
+dev-fixtures/

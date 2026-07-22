@@ -1,6 +1,8 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 import { loadEnv } from "./src/env";
 import { openaiTranscribe } from "./src/server/openaiTranscribe";
 import { openaiStructure } from "./src/server/openaiStructure";
@@ -17,6 +19,45 @@ function openaiApiPlugin(): Plugin {
       // Dev convenience: fall back to the local .env OPENAI_API_KEY if the browser didn't
       // send one, so you can test without pasting a key. Prod always uses the sent key.
       await loadEnv();
+
+      // Dev-only note seed: the preview browser's storage partition occasionally rotates,
+      // wiping IndexedDB. A backup archive kept ON DISK survives that — GET serves it (the
+      // app auto-restores on an empty boot), POST overwrites it ("Save as dev seed" in
+      // Settings). Never present in production; gitignored.
+      const seedPath = path.join(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "dev-fixtures",
+        "seed.zip",
+      );
+      server.middlewares.use((req, res, next) => {
+        if (req.url !== "/api/dev-seed") return next();
+        if (req.method === "GET") {
+          fs.readFile(seedPath)
+            .then((buf) => {
+              res.setHeader("content-type", "application/zip");
+              res.end(buf);
+            })
+            .catch(() => {
+              res.statusCode = 404;
+              res.end();
+            });
+          return;
+        }
+        if (req.method === "POST") {
+          void (async () => {
+            const chunks: Buffer[] = [];
+            for await (const c of req) chunks.push(c as Buffer);
+            await fs.mkdir(path.dirname(seedPath), { recursive: true });
+            await fs.writeFile(seedPath, Buffer.concat(chunks));
+            res.end("ok");
+          })().catch((err) => {
+            res.statusCode = 500;
+            res.end(String(err));
+          });
+          return;
+        }
+        next();
+      });
 
       server.middlewares.use((req, res, next) => {
         if (req.method !== "POST" || req.url !== "/api/transcribe") return next();
