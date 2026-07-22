@@ -1,11 +1,14 @@
 import { useState } from "react";
-import { getKeys, setKeys } from "../lib/keys";
+import { getKeys, hasDevServerKey, setKeys } from "../lib/keys";
 import "./settings-keys.css";
 
 // Paste-your-own-key panel. The key lives only in this browser (localStorage) and is used
 // for both transcription and structuring — one OpenAI account covers the whole app.
 export function SettingsKeys({ onSaved }: { onSaved: () => void }) {
   const [openai, setOpenai] = useState(getKeys().openai);
+  // In dev, the app can also run off a key in the local .env (see hasKeys). Show that so an
+  // empty field here isn't confusing — a key saved below still takes precedence.
+  const devKey = hasDevServerKey() && !openai;
 
   function save() {
     setKeys({ openai });
@@ -19,6 +22,12 @@ export function SettingsKeys({ onSaved }: { onSaved: () => void }) {
         You need your own OpenAI API key to run the app. It's stored only on this device —
         don't have one yet? Get one below.
       </p>
+      {devKey && (
+        <p className="sk-devnote">
+          Dev: using the key from your local <code>.env</code>. It survives browser resets —
+          saving one here overrides it for this browser.
+        </p>
+      )}
 
       <label className="sk-field">
         <span>OpenAI key</span>

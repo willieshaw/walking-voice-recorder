@@ -5,7 +5,7 @@ import type { Transcript } from "@core/types";
 import type { SttResult } from "@engine/providers/stt";
 import { transcriptFromStt } from "@engine/processors/transcribe/index";
 import { buildSttPrompt, getDictionary } from "../dictionary";
-import { getKeys } from "../keys";
+import { getKeys, hasDevServerKey } from "../keys";
 
 interface OpenAiVerbose {
   text: string;
@@ -17,7 +17,9 @@ interface OpenAiVerbose {
 
 export async function transcribe(file: File): Promise<Transcript> {
   const { openai } = getKeys();
-  if (!openai) throw new Error("Add your OpenAI key in Settings.");
+  // In dev the proxy fills the key from .env when the browser has none (see hasKeys); only
+  // block when neither exists. The empty header below then triggers that server fallback.
+  if (!openai && !hasDevServerKey()) throw new Error("Add your OpenAI key in Settings.");
 
   // The personal dictionary rides along as the transcription prompt, biasing recognition
   // toward the user's names/terms. URI-encoded: header values must stay ASCII-safe.

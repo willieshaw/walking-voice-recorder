@@ -10,7 +10,7 @@ import { assembleSummary } from "@engine/processors/summary/index";
 import { summaryRequest, type SummaryResult } from "@engine/processors/summary/prompt";
 import { assembleDirectives, directivesLlmRequest } from "@engine/processors/directives/index";
 import type { DirectivesResult } from "@engine/processors/directives/prompt";
-import { getKeys } from "../keys";
+import { getKeys, hasDevServerKey } from "../keys";
 
 interface LlmRequest {
   system: string;
@@ -22,7 +22,9 @@ interface LlmRequest {
 /** Run one structured-output call through the pass-through and parse the JSON result. */
 async function callStructure<T>(req: LlmRequest, paragraphs: Chunk[]): Promise<T> {
   const { openai } = getKeys();
-  if (!openai) throw new Error("Add your OpenAI key in Settings.");
+  // Dev: the proxy fills the key from .env when the browser has none (see hasKeys); only
+  // block when neither exists. The empty header below then triggers that server fallback.
+  if (!openai && !hasDevServerKey()) throw new Error("Add your OpenAI key in Settings.");
 
   const res = await fetch("/api/structure", {
     method: "POST",

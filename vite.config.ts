@@ -64,24 +64,36 @@ function openaiApiPlugin(): Plugin {
   };
 }
 
-export default defineConfig({
-  root: "app",
-  // Build to a repo-root dist/ (Cloudflare Pages "build output directory").
-  build: { outDir: "../dist", emptyOutDir: true },
-  plugins: [react(), openaiApiPlugin()],
-  resolve: {
-    alias: {
-      // Isomorphic types + focus store.
-      "@core": fileURLToPath(new URL("./src/core", import.meta.url)),
-      // Shared pure engine logic (transforms, prompt). Import ONLY Node-free modules here.
-      "@engine": fileURLToPath(new URL("./src", import.meta.url)),
+export default defineConfig(async ({ command }) => {
+  // Dev-only: tell the client whether a local .env OPENAI_API_KEY exists, so it can unlock
+  // the UI and let the dev proxy supply the key (the key's VALUE is never sent to the
+  // browser). Lets you set the key once in .env and have it survive browser-storage wipes.
+  let devHasKey = false;
+  if (command === "serve") {
+    await loadEnv();
+    devHasKey = Boolean(process.env.OPENAI_API_KEY);
+  }
+  return {
+    root: "app",
+    // Build to a repo-root dist/ (Cloudflare Pages "build output directory").
+    build: { outDir: "../dist", emptyOutDir: true },
+    plugins: [react(), openaiApiPlugin()],
+    // Only a boolean crosses to the client — never the key itself. False in production.
+    define: { "import.meta.env.VITE_DEV_HAS_KEY": JSON.stringify(devHasKey) },
+    resolve: {
+      alias: {
+        // Isomorphic types + focus store.
+        "@core": fileURLToPath(new URL("./src/core", import.meta.url)),
+        // Shared pure engine logic (transforms, prompt). Import ONLY Node-free modules here.
+        "@engine": fileURLToPath(new URL("./src", import.meta.url)),
+      },
     },
-  },
-  server: {
-    open: true, // launch the browser automatically on `npm run dev`
-    // Default to 5173, but honor a PORT env var (e.g. from tooling) so the server can be
-    // placed on an assigned free port.
-    port: process.env.PORT ? Number(process.env.PORT) : 5173,
-    fs: { allow: [".."] }, // allow importing shared modules that live outside app/
-  },
+    server: {
+      open: true, // launch the browser automatically on `npm run dev`
+      // Default to 5173, but honor a PORT env var (e.g. from tooling) so the server can be
+      // placed on an assigned free port.
+      port: process.env.PORT ? Number(process.env.PORT) : 5173,
+      fs: { allow: [".."] }, // allow importing shared modules that live outside app/
+    },
+  };
 });
