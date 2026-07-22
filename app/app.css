@@ -215,7 +215,9 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
+  /* Left padding matches the section headers' (6px) so the icon lines up under
+   * "Pinned/Folders/Recent"; a touch more on the right for the count. */
+  padding: 6px 8px 6px 6px;
   border-radius: 7px;
   font-size: 13px;
   color: var(--text-2);
@@ -349,7 +351,9 @@ body {
   background: none;
   border: none;
   text-align: left;
-  padding: 7px 8px;
+  /* Left padding matches the section headers' (6px) so titles line up under
+   * "Pinned/Folders/Recent"; a touch more on the right for the duration. */
+  padding: 7px 8px 7px 6px;
   border-radius: 7px;
   cursor: pointer;
   font-family: inherit;
@@ -369,13 +373,6 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-/* Matches the folder row's icon width — .note-item's own `gap` already supplies the
- * icon-to-text spacing, same as .side-folder's — so titles align on one left edge
- * whether or not the row has an icon. */
-.note-icon-spacer {
-  flex: none;
-  width: 14px;
 }
 .note-dur {
   font-size: 10.5px;
