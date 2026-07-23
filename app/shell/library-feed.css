@@ -1,5 +1,6 @@
 .lf-page {
-  max-width: 920px;
+  /* Border-box, so the reading column lands ~650px wide including its gutters. */
+  max-width: 650px;
   margin: 0 auto;
   padding: 44px 48px 80px;
 }
