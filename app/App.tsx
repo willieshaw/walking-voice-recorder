@@ -132,6 +132,59 @@ export default function App() {
       return !v;
     });
   }
+
+  // In-app back/forward history over what the main pane shows: {view, selectedId,
+  // filterFolder}. Derived from those state values so every navigation path feeds it — no
+  // rewiring of call sites. A back/forward move sets `navigating` so the resulting state
+  // change re-applies a past location instead of recording a new one.
+  interface NavLoc {
+    view: "library" | "memo" | "settings";
+    selectedId: string | null;
+    filterFolder: string | null;
+  }
+  const navStack = useRef<NavLoc[]>([]);
+  const navAt = useRef(-1);
+  const navigating = useRef(false);
+  const [navEnds, setNavEnds] = useState({ canBack: false, canForward: false });
+  useEffect(() => {
+    const loc: NavLoc = { view, selectedId, filterFolder };
+    if (navigating.current) {
+      navigating.current = false;
+    } else {
+      const cur = navStack.current[navAt.current];
+      const same =
+        cur &&
+        cur.view === loc.view &&
+        cur.selectedId === loc.selectedId &&
+        cur.filterFolder === loc.filterFolder;
+      if (!same) {
+        navStack.current = navStack.current.slice(0, navAt.current + 1);
+        navStack.current.push(loc);
+        navAt.current = navStack.current.length - 1;
+      }
+    }
+    setNavEnds({
+      canBack: navAt.current > 0,
+      canForward: navAt.current < navStack.current.length - 1,
+    });
+  }, [view, selectedId, filterFolder]);
+
+  function applyNavLoc(loc: NavLoc) {
+    navigating.current = true;
+    setView(loc.view);
+    setSelectedId(loc.selectedId);
+    setFilterFolder(loc.filterFolder);
+  }
+  function navBack() {
+    if (navAt.current <= 0) return;
+    navAt.current -= 1;
+    applyNavLoc(navStack.current[navAt.current]);
+  }
+  function navForward() {
+    if (navAt.current >= navStack.current.length - 1) return;
+    navAt.current += 1;
+    applyNavLoc(navStack.current[navAt.current]);
+  }
   // Which sidebar dropdowns are expanded — persisted so the sidebar keeps its shape.
   const [openSecs, setOpenSecs] = useState<{ folders: boolean; recent: boolean }>(() => {
     try {
@@ -226,6 +279,11 @@ export default function App() {
         e.preventDefault();
         if (e.shiftKey) void stepHistory(redoStack.current, undoStack.current, "redo");
         else void stepHistory(undoStack.current, redoStack.current, "undo");
+      } else if ((e.metaKey || e.ctrlKey) && (e.key === "[" || e.key === "]")) {
+        // ⌘[ / ⌘] : in-app back / forward (matches the browser's own history shortcut).
+        e.preventDefault();
+        if (e.key === "[") navBack();
+        else navForward();
       } else if (e.key === "Escape") {
         setSearchOpen(false);
         setFoldersOpen(false);
@@ -908,16 +966,38 @@ export default function App() {
             onRename={(o, n) => void renameProject(o, n)}
             onDelete={(p) => void deleteProject(p)}
           />
-          <button
-            className="icon-btn side-toggle"
-            title="Collapse sidebar"
-            onClick={toggleSidebar}
-          >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
-              <rect x="3" y="4" width="18" height="16" rx="2.5" />
-              <path d="M9.5 4v16" />
-            </svg>
-          </button>
+          <div className="brand-nav">
+            <button
+              className="icon-btn side-toggle"
+              title="Collapse sidebar"
+              onClick={toggleSidebar}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+                <rect x="3" y="4" width="18" height="16" rx="2.5" />
+                <path d="M9.5 4v16" />
+              </svg>
+            </button>
+            <button
+              className="icon-btn nav-arrow"
+              title="Back  ⌘["
+              onClick={navBack}
+              disabled={!navEnds.canBack}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 5l-7 7 7 7" />
+              </svg>
+            </button>
+            <button
+              className="icon-btn nav-arrow"
+              title="Forward  ⌘]"
+              onClick={navForward}
+              disabled={!navEnds.canForward}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
         </div>
         <DropZone
           onUpload={handleUpload}

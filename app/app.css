@@ -69,11 +69,30 @@ body {
 .app-side-collapsed {
   grid-template-columns: 58px 1fr;
 }
+/* The top-right control cluster: collapse toggle + in-app back/forward. It lives inside
+ * the expanded sidebar's brand row, so it disappears when the panel collapses to the rail. */
+.brand-nav {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex: none;
+}
 .side-toggle {
   color: var(--muted);
 }
 .side-toggle:hover {
   color: var(--text);
+}
+.nav-arrow {
+  color: var(--muted);
+}
+.nav-arrow:hover:not(:disabled) {
+  color: var(--text);
+}
+.icon-btn:disabled {
+  color: var(--hairline);
+  cursor: default;
+  background: none;
 }
 .sidebar-rail {
   display: flex;
