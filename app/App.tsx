@@ -1286,7 +1286,7 @@ export default function App() {
             onPurge={(id) => void handlePurge(id)}
             onEmpty={() => void handleEmptyTrash()}
             onKeysSaved={() => {
-              void hasKeys().then(setKeysReady);
+              void hasKeys().then(setKeysReady, () => setKeysReady(false));
               setView("library");
             }}
           />
@@ -1482,7 +1482,7 @@ export default function App() {
       {keysModalOpen && (
         <KeysModal
           onSaved={() => {
-            void hasKeys().then(setKeysReady);
+            void hasKeys().then(setKeysReady, () => setKeysReady(false));
             setKeysModalOpen(false);
           }}
           onViewSettings={() => {

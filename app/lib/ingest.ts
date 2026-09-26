@@ -80,7 +80,10 @@ export async function ingestRecording(
         title: titleFromMeta(meta),
         deviceRecording: acknowledged(meta, stream, at),
       });
-      await saveNote(note, audio);
+      // Store the blob with the same MIME fallback the File got, so the on-disk audio gets a
+      // real extension (audio.m4a / audio.wav) instead of audio.bin when the transfer carried
+      // no type.
+      await saveNote(note, audio.type ? audio : new Blob([audio], { type: file.type }));
       return { action: plan.action, recordingId: meta.recordingId, noteId: note.id };
     }
   }
