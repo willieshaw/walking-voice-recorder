@@ -26,6 +26,10 @@
         { "path": "$APPDATA" },
         { "path": "$APPDATA/**" }
       ]
+    },
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://platform.openai.com/*" }]
     }
   ]
 }
