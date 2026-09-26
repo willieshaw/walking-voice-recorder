@@ -10,7 +10,9 @@ export function SettingsKeys({ onSaved }: { onSaved: () => void }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void getKeys().then((k) => setOpenai(k.openai));
+    getKeys()
+      .then((k) => setOpenai((cur) => cur || k.openai)) // don't clobber what the user typed
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
   }, []);
 
   async function save() {

@@ -113,11 +113,18 @@ export default function App() {
   // Settings without first flashing the library.
   const [booted, setBooted] = useState(false);
   useEffect(() => {
-    void hasKeys().then((ok) => {
-      setKeysReady(ok);
-      if (!ok) setView("settings");
-      setBooted(true);
-    });
+    hasKeys()
+      .then((ok) => {
+        setKeysReady(ok);
+        if (!ok) goToSettingsAsRoot();
+      })
+      .catch((e: unknown) => {
+        setKeysReady(false);
+        goToSettingsAsRoot();
+        setError(`Couldn't read the Keychain: ${e instanceof Error ? e.message : String(e)}`);
+      })
+      .finally(() => setBooted(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [keysModalOpen, setKeysModalOpen] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
@@ -156,6 +163,13 @@ export default function App() {
   }
   const navStack = useRef<NavLoc[]>([]);
   const navAt = useRef(-1);
+  /** First-run redirect: make Settings the root of the in-app history instead of pushing it
+   *  on top of an empty library, so the back arrow doesn't lead to a keyless library. */
+  function goToSettingsAsRoot() {
+    navStack.current = [];
+    navAt.current = -1;
+    setView("settings");
+  }
   const navigating = useRef(false);
   const [navEnds, setNavEnds] = useState({ canBack: false, canForward: false });
   useEffect(() => {
