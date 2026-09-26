@@ -42,11 +42,10 @@ export function OnboardingPanel({
           Start fresh
         </button>
       </div>
-      {status && (
-        <p className="ob-status" role="status">
-          {status}
-        </p>
-      )}
+      {/* Always mounted so screen readers announce changes inside the live region. */}
+      <p className="ob-status" role="status">
+        {status ?? ""}
+      </p>
     </div>
   );
 }

@@ -48,4 +48,13 @@ describe("openaiTranscribe / openaiStructure accept an injected fetch", () => {
     expect(res.status).toBe(401);
     expect((await res.json()).error.message).toBe("bad key");
   });
+
+  it("transcribe passes a non-OK status and error body straight through", async () => {
+    const f = (async () =>
+      new Response('{"error":{"message":"bad key"}}', { status: 401 })) as unknown as typeof fetch;
+    const res = await openaiTranscribe(new Blob(["x"]), "a.m4a", "sk-bad", undefined, f);
+    expect(res.ok).toBe(false);
+    expect(res.status).toBe(401);
+    expect((await res.json()).error.message).toBe("bad key");
+  });
 });

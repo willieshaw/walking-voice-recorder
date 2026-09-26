@@ -22,3 +22,6 @@ __pycache__/
 # Tauri
 src-tauri/target/
 src-tauri/gen/
+
+# Local personal seed archive from the web era; not used by the app, never commit it.
+dev-fixtures/

@@ -13,7 +13,7 @@
 //      is written (per-file integrity is verified before a master is "safely imported").
 //
 // This module decides WHAT to do; the app layer (app/lib/ingest.ts) carries the bytes and
-// performs the IndexedDB writes + transcription.
+// performs the note-store writes + transcription.
 import type { DeviceRecordingMetadata } from "./types.js";
 
 export type IngestStream = "proxy" | "master";
