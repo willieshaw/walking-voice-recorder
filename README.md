@@ -73,7 +73,7 @@ the environment or a repo-root `.env` file.
 
 ```bash
 npm run dev      # Tauri window + Vite dev server
-npm run build    # run as CI=true npm run build; unsigned Thoughts.app + DMG in src-tauri/target/release/bundle/
+CI=true npm run build   # unsigned Thoughts.app + DMG in src-tauri/target/release/bundle/
 ```
 
 A local build is unsigned: right-click → Open the first time on a new machine. Signed,

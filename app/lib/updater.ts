@@ -41,7 +41,7 @@ export function updateStripState(
       return {
         kind: "downloading",
         version: update.version,
-        percent: phase.total ? Math.floor((phase.received / phase.total) * 100) : null,
+        percent: phase.total ? Math.min(100, Math.floor((phase.received / phase.total) * 100)) : null,
       };
     case "error":
       return { kind: "error", version: update.version, message: phase.message };
@@ -67,6 +67,10 @@ export async function installUpdate(
       onProgress({ received, total });
     } else if (e.event === "Progress") {
       received += e.data.chunkLength;
+      onProgress({ received, total });
+    } else if (e.event === "Finished") {
+      received = total ?? received;
+      total = total ?? received;
       onProgress({ received, total });
     }
   });

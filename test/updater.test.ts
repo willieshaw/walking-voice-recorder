@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // The plugin modules touch Tauri globals; mock them before importing the module under test.
 const mocks = vi.hoisted(() => ({
@@ -33,6 +33,13 @@ describe("updateStripState (pure)", () => {
       percent: null,
     });
   });
+  it("clamps percent to 100 when received exceeds total", () => {
+    expect(updateStripState({ version: "v" }, { phase: "downloading", received: 300, total: 200 })).toEqual({
+      kind: "downloading",
+      version: "v",
+      percent: 100,
+    });
+  });
   it("surfaces an error with the message", () => {
     expect(updateStripState({ version: "v" }, { phase: "error", message: "boom" })).toEqual({
       kind: "error",
@@ -43,6 +50,8 @@ describe("updateStripState (pure)", () => {
 });
 
 describe("checkForUpdate / installUpdate (plugin wrappers)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
   it("returns null when the plugin reports no update", async () => {
     mocks.check.mockResolvedValueOnce(null);
     expect(await checkForUpdate()).toBeNull();
@@ -73,7 +82,18 @@ describe("checkForUpdate / installUpdate (plugin wrappers)", () => {
       { received: 0, total: 100 },
       { received: 40, total: 100 },
       { received: 100, total: 100 },
+      { received: 100, total: 100 },
     ]);
     expect(mocks.relaunch).toHaveBeenCalledTimes(1);
+  });
+  it("does not relaunch when the download fails", async () => {
+    const handle = {
+      version: "v",
+      downloadAndInstall: vi.fn(async () => {
+        throw new Error("bad signature");
+      }),
+    };
+    await expect(installUpdate({ version: "v", handle }, () => undefined)).rejects.toThrow("bad signature");
+    expect(mocks.relaunch).not.toHaveBeenCalled();
   });
 });
