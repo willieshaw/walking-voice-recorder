@@ -7,12 +7,8 @@ dist
 app/public/notes/*
 !app/public/notes/.gitkeep
 
-# Wrangler / Cloudflare
-.wrangler
-
 # macOS
 .DS_Store
-dev-fixtures/
 
 # Generated CAD/render output and scratch (hardware prototyping)
 cad/output/
@@ -22,3 +18,10 @@ __pycache__/
 *.pyc
 # Third-party reference docs (kept locally, not in git)
 *.docx
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Local personal seed archive from the web era; not used by the app, never commit it.
+dev-fixtures/

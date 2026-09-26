@@ -5,7 +5,7 @@ Drop in an audio file and it produces a timestamped transcript, a lightly cleane
 a short digest, key moments, and extracted to-dos. Playback stays synchronized with the
 text so you can jump to any paragraph or moment in the recording.
 
-The app is browser-first and bring-your-own-key. Notes and audio are stored on the device;
+Thoughts is a Mac app and bring-your-own-key. Notes and audio are stored on your Mac;
 there is no account or hosted note database.
 
 ## What you can do
@@ -27,18 +27,17 @@ there is no account or hosted note database.
 
 ## How processing and storage work
 
-- Your OpenAI API key is saved in browser `localStorage`.
-- Audio, transcripts, analyses, labels, and other note data are stored in IndexedDB.
-- The browser sends transcription and structuring requests to `/api/transcribe` and
-  `/api/structure`. A small stateless Cloudflare Worker forwards those requests to OpenAI
-  because the OpenAI endpoints cannot be called directly from the browser.
-- Each request carries your API key. The application Worker does not persist request bodies
-  or keys, and there is no application database on the server.
+- Each note is a folder under
+  `~/Library/Application Support/com.willieshaw.thoughts/notes/`, holding `note.json`
+  (transcript, analyses, labels, and other note data) and the audio file.
+- Your OpenAI API key is stored in the macOS Keychain.
+- The app calls OpenAI directly through Tauri's HTTP plugin. Requests go from your Mac to
+  OpenAI with your key; there is no intermediate server.
 - The default models are `whisper-1` for transcription and `gpt-4o-mini` for structured
   analyses.
 
-Because the library is local to one browser profile, use the backup feature in Settings if
-the notes matter. Sign-in and cloud sync are not implemented.
+Use Settings to back up the whole library as a ZIP archive (a save dialog) or restore one
+(an open dialog). Sign-in and cloud sync are not implemented.
 
 ## Get an OpenAI key
 
@@ -48,64 +47,46 @@ the notes matter. Sign-in and cloud sync are not implemented.
 
 ## Local development
 
-Requirements: a current Node.js installation and npm.
+Requirements: a current Node.js installation, npm, and a Rust toolchain (for Tauri).
 
 ```bash
 npm install
 npm run dev
 ```
 
-The selected single-LED hardware prototype is available at
+With `npm run dev:web` running, the selected single-LED hardware prototype is available at
 `http://localhost:5173/hardware-lab.html`. The preserved four-configuration portfolio study
 is available separately at `http://localhost:5173/hardware-study.html`. Neither page is
-linked from or dependent on the Thoughts application, API keys, IndexedDB library, or
-processing endpoints.
+linked from or dependent on the Thoughts application, API keys, note library, or OpenAI
+calls.
 
 [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) is the canonical specification for the recorder hardware,
 interface, audio pipeline, transfers, security, and acceptance criteria.
 
-The Vite development server opens the app and provides local versions of both `/api/*`
-routes. You can optionally put this in a repo-root `.env` file:
-
-```dotenv
-OPENAI_API_KEY=your-key
-```
-
-In development, the proxy uses that value when the browser does not send a key. Production
-always requires the per-user key sent by the browser.
-
 Other commands:
 
 ```bash
-npm run build      # production app -> dist/
-npm run preview    # preview the production build
+npm run dev:web    # Vite dev server only, in a browser (no Tauri APIs)
+npm run build:web  # frontend only -> dist/
 npm run typecheck  # TypeScript check without emitting files
-npm test           # Vitest engine and browser-logic tests
+npm test           # Vitest engine and app-logic tests
 npm run process -- <audio-file>   # optional Node CLI pipeline
 ```
 
 The CLI path writes its note and JSON artifacts to `app/public/notes/`. It uses the same
-core types, processors, prompts, and assembly functions as the browser where practical,
-but it is separate from the IndexedDB library used by the main app.
+core types, processors, prompts, and assembly functions as the app where practical, but it
+is separate from the note library used by the Mac app. The CLI reads `OPENAI_API_KEY` from
+the environment or a repo-root `.env` file.
 
-## Deployment
-
-Production uses Cloudflare Workers with Static Assets, configured by `wrangler.jsonc` and
-`worker/index.ts`.
+## Building the Mac app
 
 ```bash
-npm run build
-npx wrangler deploy
+npm run dev      # Tauri window + Vite dev server
+npm run build    # unsigned Thoughts.app in src-tauri/target/release/bundle/macos/
 ```
 
-The build produces `dist/`. Cloudflare serves that directory through the `ASSETS` binding,
-uses an SPA fallback for client navigation, and sends the two `/api/*` routes through the
-Worker. No hosted OpenAI environment variable is required because each user supplies a key.
-
-For continuous deployment, connect the repository to Cloudflare and configure:
-
-- Build command: `npm run build`
-- Deploy command: `npx wrangler deploy`
+The build is unsigned: right-click → Open the first time on a new machine. Signing and
+notarization are tracked separately.
 
 ## Architecture
 
@@ -115,20 +96,18 @@ For continuous deployment, connect the repository to Cloudflare and configure:
   search, projects, folders, menus, and settings.
 - `app/components/` — smaller reusable UI pieces such as the drop zone, title editor, and
   audio players.
-- `app/lib/notesDb.ts` — local IndexedDB storage and note mutations.
-- `app/lib/processInBrowser.ts` — browser orchestration from audio file to complete note;
+- `app/lib/notesDb.ts` — on-disk note storage and note mutations.
+- `app/lib/processInBrowser.ts` — in-app orchestration from audio file to complete note;
   independent analyses run in parallel after transcription.
-- `app/lib/providers/` — browser adapters for the two Worker API routes.
+- `app/lib/providers/` — app adapters that call OpenAI through Tauri's fetch.
 - `src/core/` — isomorphic note types plus timeline, annotation, and combined-note logic.
   It also contains the pure standalone-recorder and transfer state machine used by the lab.
 - `src/processors/` — reusable transcript and analysis processors, prompts, schemas,
   versioning, and artifact assembly.
-- `src/server/` — isomorphic OpenAI forwarding functions shared by development and
-  production.
+- `src/server/` — isomorphic OpenAI request functions shared by the app and the Node CLI.
 - `src/cli/` and `src/core/store.ts` — the optional filesystem-based Node pipeline.
-- `worker/index.ts` — Cloudflare Worker entry point for static assets and the OpenAI
-  pass-through routes.
-- `test/` — unit and pipeline tests for shared processing and browser-side utilities.
+- `src-tauri/` — the Tauri shell: window, Keychain commands, and plugin permissions.
+- `test/` — unit and pipeline tests for shared processing and app-side utilities.
 
 The shared timeline is the main integration contract: transcript chunks, key moments, and
 to-dos carry timestamps, while `src/core/focus.ts` synchronizes playback and reading UI.

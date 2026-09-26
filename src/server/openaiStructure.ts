@@ -1,7 +1,5 @@
-// Isomorphic (Node 18+ and Cloudflare Workers): ask OpenAI chat completions to structure
-// text against a JSON Schema, using the caller's key. No fs, no storage, no logging — a
-// pass-through so the browser can call the model despite OpenAI not allowing direct
-// browser (CORS) calls to chat completions either.
+// Isomorphic (Node CLI and the desktop app): ask OpenAI chat completions to structure
+// text against a JSON Schema, using the caller's key. No fs, no storage, no logging.
 const CHAT_URL = "https://api.openai.com/v1/chat/completions";
 
 export interface StructureRequest {
@@ -15,8 +13,12 @@ export interface StructureRequest {
   model?: string;
 }
 
-export async function openaiStructure(req: StructureRequest): Promise<Response> {
-  const upstream = await fetch(CHAT_URL, {
+export async function openaiStructure(
+  req: StructureRequest,
+  /** The desktop app passes Tauri's CORS-free fetch; Node uses the global. */
+  fetchImpl: typeof fetch = fetch,
+): Promise<Response> {
+  const upstream = await fetchImpl(CHAT_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${req.apiKey}`,

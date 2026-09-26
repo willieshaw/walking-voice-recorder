@@ -1,0 +1,51 @@
+.ob {
+  max-width: 520px;
+  margin: 120px auto 0;
+  padding: 0 48px;
+  text-align: center;
+}
+.ob-title {
+  font-family: "Newsreader", Georgia, serif;
+  font-weight: 500;
+  font-size: 28px;
+  margin: 0 0 12px;
+}
+.ob-body {
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 24px;
+}
+.ob-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.ob-primary,
+.ob-secondary {
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.ob-primary {
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+}
+.ob-secondary {
+  background: var(--surface);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+}
+.ob-primary:disabled,
+.ob-secondary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.ob-status {
+  min-height: 1em;
+  margin-top: 16px;
+  font-size: 12.5px;
+  color: var(--text-2);
+}

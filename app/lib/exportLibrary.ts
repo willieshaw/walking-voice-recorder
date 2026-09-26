@@ -1,18 +1,15 @@
-// One action behind every "download your notes" button: build the archive, hand it to the
-// browser as a download, and stamp the export time the reminder banner reads. An anchor
-// download gives no cancel signal, so the stamp means "download was started", not "file
-// confirmed on disk".
+// "Download backup" on the desktop: build the zip and let the user pick where it goes.
+import { save } from "@tauri-apps/plugin-dialog";
 import { buildBackup } from "./backup";
-import { setLastExportAt } from "./exportReminder";
+import { writeAbsolute } from "./tauriFs";
 
-export async function exportLibrary(): Promise<{ count: number; filename: string }> {
-  const at = Date.now(); // the snapshot moment: anything written after this is "changed since"
+const FILTER = [{ name: "Thoughts backup", extensions: ["zip"] }];
+
+/** Resolves null when the user cancels the save dialog. */
+export async function exportLibrary(): Promise<{ count: number; filename: string } | null> {
   const { blob, count, filename } = await buildBackup();
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(a.href);
-  setLastExportAt(at);
-  return { count, filename };
+  const path = await save({ defaultPath: filename, filters: FILTER });
+  if (!path) return null;
+  await writeAbsolute(path, new Uint8Array(await blob.arrayBuffer()));
+  return { count, filename: path.split("/").pop() ?? filename };
 }

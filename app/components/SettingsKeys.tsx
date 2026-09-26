@@ -1,33 +1,40 @@
-import { useState } from "react";
-import { getKeys, hasDevServerKey, setKeys } from "../lib/keys";
+import { useEffect, useState } from "react";
+import { getKeys, setKeys } from "../lib/keys";
 import "./settings-keys.css";
 
-// Paste-your-own-key panel. The key lives only in this browser (localStorage) and is used
-// for both transcription and structuring — one OpenAI account covers the whole app.
+// Paste-your-own-key panel. The key lives in the macOS Keychain and is used for both
+// transcription and structuring — one OpenAI account covers the whole app.
 export function SettingsKeys({ onSaved }: { onSaved: () => void }) {
-  const [openai, setOpenai] = useState(getKeys().openai);
-  // In dev, the app can also run off a key in the local .env (see hasKeys). Show that so an
-  // empty field here isn't confusing — a key saved below still takes precedence.
-  const devKey = hasDevServerKey() && !openai;
+  const [openai, setOpenai] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function save() {
-    setKeys({ openai });
-    onSaved();
+  useEffect(() => {
+    getKeys()
+      .then((k) => setOpenai((cur) => cur || k.openai)) // don't clobber what the user typed
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    try {
+      await setKeys({ openai });
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <div className="sk">
       <h2 className="sk-title">OpenAI API key</h2>
       <p className="sk-intro">
-        You need your own OpenAI API key to run the app. It's stored only on this device —
+        You need your own OpenAI API key to run the app. It's stored in your macOS Keychain —
         don't have one yet? Get one below.
       </p>
-      {devKey && (
-        <p className="sk-devnote">
-          Dev: using the key from your local <code>.env</code>. It survives browser resets —
-          saving one here overrides it for this browser.
-        </p>
-      )}
 
       <label className="sk-field">
         <span>OpenAI key</span>
@@ -43,8 +50,9 @@ export function SettingsKeys({ onSaved }: { onSaved: () => void }) {
         </a>
       </label>
 
-      <button className="sk-save" onClick={save} disabled={!openai.trim()}>
-        Save key
+      {error && <p className="error">{error}</p>}
+      <button className="sk-save" onClick={() => void save()} disabled={saving || !openai.trim()}>
+        {saving ? "Saving…" : "Save key"}
       </button>
     </div>
   );

@@ -169,8 +169,8 @@ to disk is not in scope.
   - Heading: "Bring your notes from the web version"
   - Body: one sentence pointing at the web app's Download button.
   - Primary: **Import backup…** → `plugin-dialog` open, filtered to `.zip` → `restoreBackup`
-    → toast "Imported {added} notes" (and "{skipped} already here" when non-zero) → feed
-    refreshes.
+    → the feed replaces the panel as soon as a note exists (no toast; "That archive had no
+    new notes." stays in the panel when nothing was added).
   - Secondary: **Start fresh** — dismisses the panel for this launch; it returns on the next
     launch until at least one note exists.
 - Settings keeps both **Download backup** (existing `buildBackup`, saved through

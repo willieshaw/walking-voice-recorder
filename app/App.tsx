@@ -5,7 +5,6 @@ import { formatTime } from "./components/AudioPlayer";
 import { DropZone } from "./components/DropZone";
 import { EditableTitle } from "./components/EditableTitle";
 import { LibraryFeed, formatNoteDate } from "./shell/LibraryFeed";
-import { ExportBanner } from "./shell/ExportBanner";
 import { StickyPlayer } from "./shell/StickyPlayer";
 import { ReadingPane } from "./shell/ReadingPane";
 import { DigestCard } from "./shell/DigestCard";
@@ -13,6 +12,8 @@ import { MemoMenu } from "./shell/MemoMenu";
 import { CombineModal } from "./shell/CombineModal";
 import { SettingsPage } from "./shell/SettingsPage";
 import { KeysModal } from "./shell/KeysModal";
+import { OnboardingPanel } from "./shell/OnboardingPanel";
+import { importArchive } from "./lib/importArchive";
 import { isCombined, resolveCombined, type Combined } from "@core/combine";
 
 /** The subset of an annotation a user can mutate (currently just a to-do's done state). */
@@ -70,7 +71,6 @@ import {
   setActiveProjectStored,
 } from "./lib/projects";
 import { hasKeys } from "./lib/keys";
-import { restoreBackup } from "./lib/backup";
 import {
   buildDirectives,
   buildKeyMoments,
@@ -96,10 +96,9 @@ import { processInBrowser } from "./lib/processInBrowser";
 import "./app.css";
 
 export default function App() {
-  // First run (no API key yet) lands on Settings, where the key panel lives.
-  const [view, setView] = useState<"library" | "memo" | "settings">(
-    hasKeys() ? "library" : "settings",
-  );
+  // A keyless first run is redirected to Settings, where the key panel lives, once the
+  // Keychain read settles (see the boot effect).
+  const [view, setView] = useState<"library" | "memo" | "settings">("library");
   const [summaries, setSummaries] = useState<NoteSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [note, setNote] = useState<Note | null>(null);
@@ -107,7 +106,24 @@ export default function App() {
   const [combined, setCombined] = useState<Combined | null>(null);
   const [combineOpen, setCombineOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [keysReady, setKeysReady] = useState(hasKeys());
+  const [keysReady, setKeysReady] = useState(false);
+  // Nothing renders until the Keychain read settles, so a keyless first run lands on
+  // Settings without first flashing the library.
+  const [booted, setBooted] = useState(false);
+  useEffect(() => {
+    hasKeys()
+      .then((ok) => {
+        setKeysReady(ok);
+        if (!ok) goToSettingsAsRoot();
+      })
+      .catch((e: unknown) => {
+        setKeysReady(false);
+        goToSettingsAsRoot();
+        setError(`Couldn't read the Keychain: ${e instanceof Error ? e.message : String(e)}`);
+      })
+      .finally(() => setBooted(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [keysModalOpen, setKeysModalOpen] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   // Where the re-analysis was launched from: the offer banner (shows "Upgrading…" in place)
@@ -145,6 +161,13 @@ export default function App() {
   }
   const navStack = useRef<NavLoc[]>([]);
   const navAt = useRef(-1);
+  /** First-run redirect: make Settings the root of the in-app history instead of pushing it
+   *  on top of an empty library, so the back arrow doesn't lead to a keyless library. */
+  function goToSettingsAsRoot() {
+    navStack.current = [];
+    navAt.current = -1;
+    setView("settings");
+  }
   const navigating = useRef(false);
   const [navEnds, setNavEnds] = useState({ canBack: false, canForward: false });
   useEffect(() => {
@@ -242,25 +265,12 @@ export default function App() {
   combinedRef.current = !!combined;
 
   const [notesLoaded, setNotesLoaded] = useState(false);
+  const [startedFresh, setStartedFresh] = useState(false);
   useEffect(() => {
     // Drop trashed notes whose 30-day window lapsed, then load the rest.
     void purgeExpired()
       .then(listNotes)
-      .then(async (s) => {
-        // DEV: the preview browser's storage partition occasionally rotates, wiping
-        // IndexedDB. If we boot empty and an on-disk seed archive exists, restore it —
-        // so test notes survive storage wipes without regenerating them.
-        if (import.meta.env.DEV && s.length === 0) {
-          try {
-            const res = await fetch("/api/dev-seed");
-            if (res.ok) {
-              await restoreBackup(new File([await res.blob()], "seed.zip"));
-              s = await listNotes();
-            }
-          } catch {
-            // no seed saved yet — a normal empty start
-          }
-        }
+      .then((s) => {
         setSummaries(s);
         setNotesLoaded(true);
       });
@@ -916,6 +926,7 @@ export default function App() {
   // note is combined, otherwise the note itself. The header/menu/labels always use the host.
   const activeNote = note ? (combined?.note ?? note) : null;
 
+  if (!booted) return null;
   return (
     <div className={`app${sideCollapsed ? " app-side-collapsed" : ""}`}>
       {sideCollapsed ? (
@@ -1275,17 +1286,27 @@ export default function App() {
             onPurge={(id) => void handlePurge(id)}
             onEmpty={() => void handleEmptyTrash()}
             onKeysSaved={() => {
-              setKeysReady(hasKeys());
+              void hasKeys().then(setKeysReady, () => setKeysReady(false));
               setView("library");
             }}
           />
         ) : view === "library" ? (
-          <LibraryFeed
-            summaries={filterFolder ? live.filter((s) => s.folder === filterFolder) : live}
-            title={filterFolder ?? "All notes"}
-            banner={notesLoaded ? <ExportBanner notes={summaries} /> : null}
-            onOpen={openMemo}
-          />
+          notesLoaded && summaries.length === 0 && !startedFresh ? (
+            <OnboardingPanel
+              onImport={async () => {
+                const r = await importArchive();
+                if (r?.added) setSummaries(await listNotes());
+                return r;
+              }}
+              onStartFresh={() => setStartedFresh(true)}
+            />
+          ) : (
+            <LibraryFeed
+              summaries={filterFolder ? live.filter((s) => s.folder === filterFolder) : live}
+              title={filterFolder ?? "All notes"}
+              onOpen={openMemo}
+            />
+          )
         ) : (
           <div className="memo">
             <div className="memo-top">
@@ -1461,7 +1482,7 @@ export default function App() {
       {keysModalOpen && (
         <KeysModal
           onSaved={() => {
-            setKeysReady(hasKeys());
+            void hasKeys().then(setKeysReady, () => setKeysReady(false));
             setKeysModalOpen(false);
           }}
           onViewSettings={() => {

@@ -1,6 +1,11 @@
-// Local-first note storage in the browser (IndexedDB). Each note's audio blob + artifacts
-// live here; nothing is sent to a server. A small hand-rolled IDB wrapper (no dependency).
+// Local-first note storage on disk. Each note is a folder under the app data directory:
+//   notes/<id>/note.json   the note's data (StoredNote minus the blob, plus audioType)
+//   notes/<id>/audio.<ext> the recording, byte-for-byte
+// Writes are temp-file + rename, so a crash never leaves a half-written note. A cache of
+// every note.json (never the audio) is held in memory after the first listing.
+// Note ids are validated as plain path segments before anything is written under them.
 import type { Annotation, Chunk, FormattingLayers, Note, Transcript } from "@core/types";
+import { getFsPort } from "./fsPort";
 
 export interface NoteSummary {
   id: string;
@@ -34,74 +39,164 @@ export interface StoredNote {
   audio: Blob;
 }
 
-const DB_NAME = "wvr";
-const STORE = "notes";
+/** What note.json holds: the stored record minus the blob, plus the blob's MIME type. */
+type NoteRecord = Omit<StoredNote, "audio"> & { audioType: string };
 
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = () => {
-      req.result.createObjectStore(STORE, { keyPath: "id" });
-    };
-    req.onsuccess = () => {
-      const db = req.result;
-      // A future schema upgrade (open with a higher version) asks every live connection to
-      // step aside; without this the upgrade would sit in `blocked` for as long as we're open.
-      db.onversionchange = () => db.close();
-      resolve(db);
-    };
-    req.onerror = () => reject(req.error);
-  });
+const NOTES_DIR = "notes";
+const RECORD = "note.json";
+
+const EXT: Record<string, string> = {
+  "audio/mp4": "m4a",
+  "audio/x-m4a": "m4a",
+  "audio/wav": "wav",
+  "audio/wave": "wav",
+  "audio/x-wav": "wav",
+  "audio/webm": "webm",
+  "audio/mpeg": "mp3",
+};
+/** File extension for a MIME type; parameters (`;codecs=opus`) are ignored. */
+const extFor = (mime: string) => EXT[mime.split(";")[0].trim().toLowerCase()] ?? "bin";
+const dirOf = (id: string) => `${NOTES_DIR}/${id}`;
+const recordPath = (id: string) => `${dirOf(id)}/${RECORD}`;
+const audioPath = (id: string, mime: string) => `${dirOf(id)}/audio.${extFor(mime)}`;
+
+/** An id becomes a folder name, so it must be one plain path segment. */
+const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+function assertSafeId(id: string): void {
+  if (typeof id !== "string" || !SAFE_ID.test(id) || id === "." || id === "..") {
+    throw new Error(`Invalid note id: ${JSON.stringify(id)}`);
+  }
 }
 
-/** Open a connection, run one transaction on the notes store, and close the connection once
- *  that transaction settles. Connections are per-call, so nothing lingers afterwards to block
- *  a later deleteDatabase() or a schema-upgrade open(). close() itself waits for the
- *  in-flight transaction, so wiring it to every terminal event is safe. */
-function withStore<T>(
-  mode: IDBTransactionMode,
-  run: (store: IDBObjectStore, resolve: (value: T) => void, reject: (error: unknown) => void) => void,
-): Promise<T> {
-  return openDb().then(
-    (db) =>
-      new Promise<T>((resolve, reject) => {
-        const transaction = db.transaction(STORE, mode);
-        const release = () => db.close();
-        transaction.oncomplete = release;
-        transaction.onerror = release;
-        transaction.onabort = release;
-        run(transaction.objectStore(STORE), resolve, reject);
+/** Records are plain JSON, so a JSON round-trip is a faithful deep copy. Callers get copies
+ *  (as IndexedDB's structured clone gave them), so nobody can mutate the cache by accident. */
+const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
+// ---- cache + locks --------------------------------------------------------------------
+
+let cache: Map<string, NoteRecord> | null = null;
+const locks = new Map<string, Promise<unknown>>();
+
+/** Tests: forget the cache so the next call re-reads the (fake) disk. */
+export function _resetForTests(): void {
+  cache = null;
+  locks.clear();
+}
+
+/** Serialize work per note id (the file-store stand-in for an IndexedDB readwrite tx). */
+function withLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
+  const prev = locks.get(id) ?? Promise.resolve();
+  const next = prev.catch(() => undefined).then(fn);
+  locks.set(id, next);
+  void next
+    .catch(() => undefined)
+    .finally(() => {
+      if (locks.get(id) === next) locks.delete(id);
+    });
+  return next;
+}
+
+/** Read every note.json once. Folders without a readable record are skipped. */
+async function records(): Promise<Map<string, NoteRecord>> {
+  if (cache) return cache;
+  const fs = await getFsPort();
+  await fs.mkdir(NOTES_DIR);
+  const map = new Map<string, NoteRecord>();
+  const entries = await fs.readDir(NOTES_DIR);
+  await Promise.all(
+    entries
+      .filter((e) => e.isDirectory)
+      .map(async (e) => {
+        try {
+          const rec = JSON.parse(await fs.readTextFile(recordPath(e.name))) as NoteRecord;
+          if (rec && rec.id === e.name) map.set(rec.id, rec);
+        } catch {
+          // no note.json or unparsable: an interrupted write — purgeExpired cleans it
+        }
       }),
   );
+  // Two first calls can race here; the first to finish wins so every caller shares one map.
+  cache ??= map;
+  return cache;
 }
 
-function tx<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  return withStore<T>(mode, (store, resolve, reject) => {
-    const request = fn(store);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+/** Write note.json (temp + rename), then point the cache at exactly what is on disk. */
+async function writeRecord(rec: NoteRecord): Promise<void> {
+  const fs = await getFsPort();
+  await fs.mkdir(dirOf(rec.id));
+  const target = recordPath(rec.id);
+  const json = JSON.stringify(rec);
+  await fs.writeTextFile(`${target}.tmp`, json);
+  await fs.rename(`${target}.tmp`, target);
+  (await records()).set(rec.id, JSON.parse(json) as NoteRecord);
+}
+
+async function writeAudio(id: string, audio: Blob): Promise<void> {
+  const fs = await getFsPort();
+  await fs.mkdir(dirOf(id));
+  const target = audioPath(id, audio.type);
+  await fs.writeFile(`${target}.tmp`, new Uint8Array(await audio.arrayBuffer()));
+  await fs.rename(`${target}.tmp`, target);
+}
+
+async function readAudio(rec: NoteRecord): Promise<Blob> {
+  const fs = await getFsPort();
+  const bytes = await fs.readFile(audioPath(rec.id, rec.audioType));
+  // plugin-fs hands back a fresh, unshared buffer; the cast only narrows ArrayBufferLike.
+  return new Blob([bytes as Uint8Array<ArrayBuffer>], { type: rec.audioType });
+}
+
+/** readAudio, but null when the audio file is gone. Other read failures still throw. */
+async function readAudioIfPresent(rec: NoteRecord): Promise<Blob | null> {
+  try {
+    return await readAudio(rec);
+  } catch (err) {
+    const fs = await getFsPort();
+    if (await fs.exists(audioPath(rec.id, rec.audioType))) throw err;
+    return null;
+  }
+}
+
+/** Atomic read-modify-write of one record under the note's lock. The mutation runs on a
+ *  copy, so a failed write leaves the cache matching the disk. */
+function mutateNote(id: string, mutate: (rec: NoteRecord) => void): Promise<void> {
+  return withLock(id, async () => {
+    const cached = (await records()).get(id);
+    if (!cached) return;
+    const rec = copy(cached);
+    mutate(rec);
+    rec.updatedAt = Date.now();
+    await writeRecord(rec);
   });
 }
 
 export async function saveNote(note: Note, audio: Blob): Promise<void> {
+  assertSafeId(note.id);
   const { audioUrl: _drop, ...data } = note;
   const now = Date.now();
-  const stored: StoredNote = {
+  const rec: NoteRecord = {
     id: note.id,
     title: note.title,
     durationSec: note.durationSec,
     createdAt: now,
     updatedAt: now,
     data,
-    audio,
+    audioType: audio.type,
   };
-  await tx("readwrite", (s) => s.put(stored));
+  await withLock(note.id, async () => {
+    const prev = (await records()).get(note.id);
+    await writeAudio(note.id, audio);
+    await writeRecord(rec);
+    // Re-saving with a different audio type: drop the stale file once the record lands.
+    if (prev && audioPath(note.id, prev.audioType) !== audioPath(note.id, audio.type)) {
+      await (await getFsPort()).remove(audioPath(note.id, prev.audioType));
+    }
+  });
 }
 
 /** All stored notes, newest first. The shared read behind the feed and search. */
-async function allByRecency(): Promise<StoredNote[]> {
-  const all = await tx<StoredNote[]>("readonly", (s) => s.getAll());
-  return all.sort((a, b) => b.createdAt - a.createdAt);
+async function allByRecency(): Promise<NoteRecord[]> {
+  return [...(await records()).values()].sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function listNotes(): Promise<NoteSummary[]> {
@@ -155,32 +250,15 @@ export async function searchNotes(query: string, project?: string): Promise<Sear
 }
 
 export async function getNote(id: string): Promise<Note | null> {
-  const stored = await tx<StoredNote | undefined>("readonly", (s) => s.get(id));
-  if (!stored) return null;
+  const rec = (await records()).get(id);
+  if (!rec) return null;
+  const audio = await readAudioIfPresent(rec);
+  if (!audio) throw new Error(`Note ${id} has no audio file`);
   return {
-    ...stored.data,
-    createdAt: stored.createdAt,
-    audioUrl: URL.createObjectURL(stored.audio),
+    ...copy(rec.data),
+    createdAt: rec.createdAt,
+    audioUrl: URL.createObjectURL(audio),
   };
-}
-
-/** Atomic read-modify-write in ONE readwrite transaction. IndexedDB serializes
- *  overlapping readwrite transactions on the store, so two concurrent patches
- *  (e.g. a tag commit racing a pin click) can't clobber each other. */
-function mutateNote(id: string, mutate: (stored: StoredNote) => void): Promise<void> {
-  return withStore<void>("readwrite", (store, resolve, reject) => {
-    const get = store.get(id);
-    get.onerror = () => reject(get.error);
-    get.onsuccess = () => {
-      const stored = get.result as StoredNote | undefined;
-      if (!stored) return resolve();
-      mutate(stored);
-      stored.updatedAt = Date.now();
-      const put = store.put(stored);
-      put.onsuccess = () => resolve();
-      put.onerror = () => reject(put.error);
-    };
-  });
 }
 
 /** The recorder-ingest read model for one recording (null = no note yet). `hasMaster` is
@@ -188,22 +266,32 @@ function mutateNote(id: string, mutate: (stored: StoredNote) => void): Promise<v
 export async function ingestState(
   recordingId: string,
 ): Promise<{ recordingId: string; hasMaster: boolean } | null> {
-  const stored = await tx<StoredNote | undefined>("readonly", (s) => s.get(recordingId));
-  if (!stored) return null;
-  return { recordingId, hasMaster: !!stored.data.deviceRecording?.master.acknowledgedAt };
+  const rec = (await records()).get(recordingId);
+  if (!rec) return null;
+  return { recordingId, hasMaster: !!rec.data.deviceRecording?.master.acknowledgedAt };
 }
 
-/** Attach a full-quality master to an existing note: swap the stored audio blob and stamp
- *  the master acknowledgement, leaving the transcript and every analysis untouched. */
+/** Attach a full-quality master to an existing note: swap the stored audio file and stamp
+ *  the master acknowledgement, leaving the transcript and every analysis untouched. The new
+ *  audio and the record land before the old audio file (other extension) is removed. */
 export async function attachMaster(
   recordingId: string,
   master: Blob,
   acknowledgedAt: string,
 ): Promise<void> {
-  await mutateNote(recordingId, (stored) => {
-    stored.audio = master;
-    const dr = stored.data.deviceRecording;
+  await withLock(recordingId, async () => {
+    const cached = (await records()).get(recordingId);
+    if (!cached) return;
+    const fs = await getFsPort();
+    const oldPath = audioPath(recordingId, cached.audioType);
+    await writeAudio(recordingId, master);
+    const rec = copy(cached);
+    rec.audioType = master.type;
+    const dr = rec.data.deviceRecording;
     if (dr) dr.master = { ...dr.master, acknowledgedAt };
+    rec.updatedAt = Date.now();
+    await writeRecord(rec);
+    if (oldPath !== audioPath(recordingId, master.type)) await fs.remove(oldPath);
   });
 }
 
@@ -292,26 +380,51 @@ export async function updateChunkText(
 }
 
 /** Every stored note, raw — the backup archive's source. Includes trashed notes, so a
- *  restored library is byte-faithful (they come back still in the trash). */
+ *  restored library is byte-faithful (they come back still in the trash). A note whose
+ *  audio file is missing is skipped with a warning, so one damaged folder can't block
+ *  every backup. */
 export async function dumpNotes(): Promise<StoredNote[]> {
-  return allByRecency();
+  const all = await allByRecency();
+  const dumped = await Promise.all(
+    all.map(async (rec): Promise<StoredNote | null> => {
+      const audio = await readAudioIfPresent(rec);
+      if (!audio) {
+        console.warn(`dumpNotes: skipping note ${rec.id}, its audio file is missing`);
+        return null;
+      }
+      const { audioType: _type, ...rest } = copy(rec);
+      return { ...rest, audio };
+    }),
+  );
+  return dumped.filter((n): n is StoredNote => n !== null);
 }
 
 /** Merge notes into the store by id. Existing ids are left untouched — restore never
- *  overwrites what's already here, so re-importing an archive is a no-op. */
+ *  overwrites what's already here, so re-importing an archive is a no-op. Records whose id
+ *  is not a plain path segment are skipped. The existence check runs under the note's lock,
+ *  so an import racing a save of the same id can't write over it. */
 export async function importNotes(
   notes: StoredNote[],
 ): Promise<{ added: number; skipped: number }> {
   let added = 0;
   let skipped = 0;
   for (const n of notes) {
-    const exists = await tx<StoredNote | undefined>("readonly", (s) => s.get(n.id));
-    if (exists) {
+    try {
+      assertSafeId(n.id);
+    } catch (err) {
+      console.warn(`importNotes: skipping a record: ${(err as Error).message}`);
       skipped++;
       continue;
     }
-    await tx("readwrite", (s) => s.put(n));
-    added++;
+    const { audio, ...rest } = n;
+    const wrote = await withLock(n.id, async () => {
+      if ((await records()).has(n.id)) return false;
+      await writeAudio(n.id, audio);
+      await writeRecord({ ...rest, audioType: audio.type });
+      return true;
+    });
+    if (wrote) added++;
+    else skipped++;
   }
   return { added, skipped };
 }
@@ -319,18 +432,37 @@ export async function importNotes(
 /** How long a soft-deleted note lives in "Recently deleted" before it's purged. */
 export const TRASH_RETENTION_DAYS = 30;
 
-/** Permanently remove a note — audio blob and all artifacts. Only reachable from the
- *  trash view (per-item delete or "Empty now"); everyday delete is the soft `deletedAt`. */
+/** Permanently remove a note — its whole folder, audio and all artifacts. Only reachable
+ *  from the trash view (per-item delete or "Empty now"); everyday delete is the soft
+ *  `deletedAt`. */
 export async function purgeNote(id: string): Promise<void> {
-  await tx("readwrite", (s) => s.delete(id));
+  await withLock(id, async () => {
+    await (await getFsPort()).remove(dirOf(id));
+    (await records()).delete(id);
+  });
 }
 
-/** Drop any trashed note whose retention window has lapsed. Called once on app load. */
+/** Drop any trashed note whose retention window has lapsed, and any folder left without a
+ *  readable note.json by an interrupted write. Called once on app load. */
 export async function purgeExpired(): Promise<void> {
-  const all = await tx<StoredNote[]>("readonly", (s) => s.getAll());
+  const fs = await getFsPort();
+  const all = await records();
   const cutoff = Date.now() - TRASH_RETENTION_DAYS * 86_400_000;
-  const expired = all.filter((n) => n.data.deletedAt && n.data.deletedAt < cutoff);
+  const expired = [...all.values()].filter((n) => n.data.deletedAt && n.data.deletedAt < cutoff);
   await Promise.all(expired.map((n) => purgeNote(n.id)));
+  const entries = await fs.readDir(NOTES_DIR);
+  // Orphan removal runs under the note's lock and re-checks there, so a save of the same
+  // id (e.g. a launch-time ingest) either lands first and keeps the folder, or waits for
+  // the removal and then rewrites it.
+  await Promise.all(
+    entries
+      .filter((e) => e.isDirectory && !all.has(e.name))
+      .map((e) =>
+        withLock(e.name, async () => {
+          if (!(await records()).has(e.name)) await fs.remove(dirOf(e.name));
+        }),
+      ),
+  );
 }
 
 /** Patch one annotation by id inside a single read-modify-write, so concurrent toggles

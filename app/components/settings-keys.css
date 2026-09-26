@@ -15,23 +15,6 @@
   line-height: 1.55;
   margin: 0 0 1.4rem;
 }
-.sk-devnote {
-  font-size: 0.82rem;
-  line-height: 1.5;
-  color: var(--text-2);
-  background: rgba(37, 99, 235, 0.06);
-  border: 1px solid rgba(37, 99, 235, 0.18);
-  border-radius: 8px;
-  padding: 8px 12px;
-  margin: 0 0 1.4rem;
-}
-.sk-devnote code {
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  font-size: 0.9em;
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 4px;
-  padding: 0 4px;
-}
 .sk-field {
   display: flex;
   flex-direction: column;

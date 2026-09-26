@@ -206,7 +206,7 @@ Replace the file with:
 const KEYCHAIN_SERVICE: &str = "Thoughts";
 
 /// Read a secret. `Ok(None)` when no item exists yet.
-#[tauri::command]
+#[tauri::command(async)]
 fn keychain_get(account: String) -> Result<Option<String>, String> {
     let entry = keyring::Entry::new(KEYCHAIN_SERVICE, &account).map_err(|e| e.to_string())?;
     match entry.get_password() {
@@ -217,7 +217,7 @@ fn keychain_get(account: String) -> Result<Option<String>, String> {
 }
 
 /// Write a secret; an empty value deletes the item.
-#[tauri::command]
+#[tauri::command(async)]
 fn keychain_set(account: String, value: String) -> Result<(), String> {
     let entry = keyring::Entry::new(KEYCHAIN_SERVICE, &account).map_err(|e| e.to_string())?;
     if value.is_empty() {
@@ -274,15 +274,14 @@ Replace with:
       "identifier": "fs:scope",
       "allow": [
         { "path": "$APPDATA" },
-        { "path": "$APPDATA/**" },
-        { "path": "$HOME/**" }
+        { "path": "$APPDATA/**" }
       ]
     }
   ]
 }
 ```
 
-`$HOME/**` is what lets the app read a backup zip the user picks anywhere and write one where they choose. Everything else lives under `$APPDATA`.
+Backup zips need no home-directory scope: the dialog plugin adds every path the user picks in an open/save dialog to the fs scope at runtime (per launch, per path), and `readAbsolute`/`writeAbsolute` operate on exactly those paths.
 
 - [ ] **Step 4: Compile**
 
@@ -294,17 +293,32 @@ Expected: `Finished` with no errors (warnings about unused code are fine).
 
 - [ ] **Step 5: Manual check of the commands**
 
-Run `npm run dev`, open the webview devtools (right-click → Inspect Element), and in the console:
+Verify from inside the app only (the app created the Keychain item, so it can read it back
+without a prompt; do NOT use the `security` CLI, which triggers a login-keychain password
+prompt). Temporarily add to the top of `app/main.tsx`:
 
-```js
-const { invoke } = window.__TAURI__?.core ?? (await import("@tauri-apps/api/core"));
-await invoke("keychain_set", { account: "openai", value: "test-123" });
-await invoke("keychain_get", { account: "openai" });   // → "test-123"
-await invoke("keychain_set", { account: "openai", value: "" });
-await invoke("keychain_get", { account: "openai" });   // → null
+```ts
+// TEMP keychain smoke — remove before commit
+void (async () => {
+  const { invoke } = await import("@tauri-apps/api/core");
+  const fs = await import("@tauri-apps/plugin-fs");
+  const lines: string[] = [];
+  const note = (m: string) => lines.push(m);
+  note(`set -> ${JSON.stringify(await invoke("keychain_set", { account: "openai", value: "test-123" }))}`);
+  note(`get -> ${JSON.stringify(await invoke("keychain_get", { account: "openai" }))}`);
+  note(`delete -> ${JSON.stringify(await invoke("keychain_set", { account: "openai", value: "" }))}`);
+  note(`get after delete -> ${JSON.stringify(await invoke("keychain_get", { account: "openai" }))}`);
+  await fs.writeTextFile("keychain-smoke.txt", lines.join("\n"), { baseDir: fs.BaseDirectory.AppData });
+})();
 ```
 
-(If `window.__TAURI__` is undefined, set `"app": { "withGlobalTauri": true, … }` in `tauri.conf.json` temporarily, or run the same calls from a scratch line in `main.tsx`.) macOS may show a Keychain prompt the first time; click Always Allow. An unsigned dev build changes identity on every rebuild, so the prompt can recur — expected until signing.
+Run `npm run dev`, wait for the window, then read
+`~/Library/Application Support/com.willieshaw.thoughts/keychain-smoke.txt`. Expected lines:
+`set -> null`, `get -> "test-123"`, `delete -> null`, `get after delete -> null`. macOS may
+show a Keychain prompt for the app itself the first time ("Thoughts wants to use…"); Always
+Allow is fine. An unsigned dev build changes identity on every rebuild, so it can recur —
+expected until signing. Then remove the temp block (`git diff app/main.tsx` must be empty),
+delete the smoke file, and quit the app.
 
 - [ ] **Step 6: Commit**
 
@@ -535,7 +549,7 @@ export class MemoryFs implements FsPort {
   async readFile(path: string): Promise<Uint8Array> {
     const f = this.files.get(norm(path));
     if (!f) throw new Error(`readFile: ${path} is missing`);
-    return f;
+    return f.slice(); // a copy, like the real plugin
   }
 
   async readTextFile(path: string): Promise<string> {
@@ -544,7 +558,8 @@ export class MemoryFs implements FsPort {
 
   async writeFile(path: string, data: Uint8Array): Promise<void> {
     const p = norm(path);
-    this.ensureParents(p);
+    // Strict like the real plugin: parents must already exist (the store mkdirs first).
+    if (!this.dirs.has(parent(p))) throw new Error(`writeFile: parent of ${p} is missing`);
     this.files.set(p, data.slice());
   }
 
