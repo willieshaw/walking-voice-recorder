@@ -31,6 +31,11 @@
       "app",
       "dmg"
     ],
+    "publisher": "Willie Fineberg",
+    "copyright": "\u00a9 2026 Willie Fineberg",
+    "category": "Productivity",
+    "shortDescription": "Local-first voice notes",
+    "longDescription": "Thoughts turns spoken recordings into readable, searchable notes that live only on your Mac.",
     "createUpdaterArtifacts": true,
     "macOS": {
       "minimumSystemVersion": "10.15"
