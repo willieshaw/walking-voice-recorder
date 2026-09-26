@@ -155,6 +155,30 @@ function mutateNote(id: string, mutate: (stored: StoredNote) => void): Promise<v
   );
 }
 
+/** The recorder-ingest read model for one recording (null = no note yet). `hasMaster` is
+ *  true once the note holds full-quality master audio. Feeds planIngest in app/lib/ingest. */
+export async function ingestState(
+  recordingId: string,
+): Promise<{ recordingId: string; hasMaster: boolean } | null> {
+  const stored = await tx<StoredNote | undefined>("readonly", (s) => s.get(recordingId));
+  if (!stored) return null;
+  return { recordingId, hasMaster: !!stored.data.deviceRecording?.master.acknowledgedAt };
+}
+
+/** Attach a full-quality master to an existing note: swap the stored audio blob and stamp
+ *  the master acknowledgement, leaving the transcript and every analysis untouched. */
+export async function attachMaster(
+  recordingId: string,
+  master: Blob,
+  acknowledgedAt: string,
+): Promise<void> {
+  await mutateNote(recordingId, (stored) => {
+    stored.audio = master;
+    const dr = stored.data.deviceRecording;
+    if (dr) dr.master = { ...dr.master, acknowledgedAt };
+  });
+}
+
 /** Rename a note in place (updates both the summary title and the stored note data). */
 export async function renameNote(id: string, title: string): Promise<void> {
   await mutateNote(id, (stored) => {
