@@ -120,8 +120,8 @@ Run: `npx vitest run test/no-external-fonts.test.ts` → 4 failures (three pages
 
 ```bash
 mkdir -p app/public/fonts
-curl -sSL -o app/public/fonts/Newsreader-Variable.woff2 "https://fonts.gstatic.com/s/newsreader/v26/cY9AfjOCX1hbuyalUrK439HyjIJFJpeBZQ.woff2"
-curl -sSL -o app/public/fonts/Newsreader-Italic-Variable.woff2 "https://fonts.gstatic.com/s/newsreader/v26/cY9AfjOCX1hbuyalUrK4397yjIJFJpc.woff2"
+curl -sSL -o app/public/fonts/Newsreader-Variable.woff2 "https://fonts.gstatic.com/s/newsreader/v26/cY9AfjOCX1hbuyalUrK4397yjIJFJpc.woff2"
+curl -sSL -o app/public/fonts/Newsreader-Italic-Variable.woff2 "https://fonts.gstatic.com/s/newsreader/v26/cY9CfjOCX1hbuyalUrK439vCjohCBJWxZA.woff2"
 file app/public/fonts/*.woff2 && ls -la app/public/fonts
 ```
 Expected: both files reported as `Web Open Font Format (Version 2)`, tens of KB each. If a URL 404s (Google rotates `v26`), fetch the current ones: `curl -s -A "Mozilla/5.0 (Macintosh) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15" "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap"` and take the `src: url(...)` of the `/* latin */` block for `font-style: normal` and `font-style: italic`.

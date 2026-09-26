@@ -1,6 +1,7 @@
 /* Self-hosted Newsreader (OFL). Variable axes: opsz 6–72, wght 200–800. Served from
    app/public/fonts so the app renders offline and makes no request to Google on launch.
-   Imported by every stylesheet that sets font-family: Newsreader. */
+   Imported by every stylesheet that sets font-family: Newsreader.
+   Latin subset only (U+0000–00FF and a few extras); other scripts fall back to the system serif. */
 @font-face {
   font-family: "Newsreader";
   font-style: normal;

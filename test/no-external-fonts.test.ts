@@ -20,4 +20,11 @@ describe("entry pages load no external fonts", () => {
       expect(readFileSync(new URL(`../${sheet}`, import.meta.url), "utf8")).toMatch(/@import "\.{1,2}\/fonts\.css";/);
     }
   });
+  it("the bundled font files are real WOFF2 fonts, not a stray subset", () => {
+    for (const file of ["app/public/fonts/Newsreader-Variable.woff2", "app/public/fonts/Newsreader-Italic-Variable.woff2"]) {
+      const bytes = readFileSync(new URL(`../${file}`, import.meta.url));
+      expect(bytes.subarray(0, 4).toString("ascii")).toBe("wOF2");
+      expect(bytes.length).toBeGreaterThan(100_000);
+    }
+  });
 });
