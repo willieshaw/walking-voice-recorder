@@ -24,7 +24,7 @@ without warnings and that updates itself when a new build ships.
 
 Facts the design relies on: the app does not capture audio itself (no microphone entitlement or
 usage description needed); the only external URLs are Google Fonts (to be removed) and the
-OpenAI "get a key" link; the Developer Team ID is `JH32293684`; an `Apple Development`
+OpenAI "get a key" link; the Developer Team ID is `L95DSGCT97`; an `Apple Development`
 certificate exists on Willie's Mac but no `Developer ID Application` certificate yet.
 
 ## 1. One-time setup (Willie, outside the repo)
@@ -45,10 +45,10 @@ Written as a checklist in the plan with exact commands. In short:
 |---|---|
 | `APPLE_CERTIFICATE` | base64 of the `.p12` |
 | `APPLE_CERTIFICATE_PASSWORD` | the `.p12` password |
-| `APPLE_SIGNING_IDENTITY` | `Developer ID Application: William Fineberg (JH32293684)` (exact name from `security find-identity -v -p codesigning`) |
+| `APPLE_SIGNING_IDENTITY` | `Developer ID Application: William Fineberg (L95DSGCT97)` (exact name from `security find-identity -v -p codesigning`) |
 | `APPLE_ID` | the Apple ID email |
 | `APPLE_PASSWORD` | the app-specific password |
-| `APPLE_TEAM_ID` | `JH32293684` |
+| `APPLE_TEAM_ID` | `L95DSGCT97` |
 | `TAURI_SIGNING_PRIVATE_KEY` | contents of `~/.tauri/thoughts.key` |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | its password |
 

@@ -41,12 +41,12 @@
 
 No repo changes. Do these once; the plan cannot proceed to Task 9 without them, but Tasks 2–8 do not depend on them.
 
-- [ ] **Step 1: Developer ID Application certificate.** Xcode → Settings → Accounts → select the team `JH32293684` → Manage Certificates… → "+" → **Developer ID Application**. Confirm it exists:
+- [ ] **Step 1: Developer ID Application certificate.** Xcode → Settings → Accounts → select the team `L95DSGCT97` → Manage Certificates… → "+" → **Developer ID Application**. Confirm it exists:
 
 ```bash
 security find-identity -v -p codesigning
 ```
-Expected: a line containing `"Developer ID Application: William Fineberg (JH32293684)"`. Copy that exact quoted name; it is the `APPLE_SIGNING_IDENTITY` secret.
+Expected: a line containing `"Developer ID Application: William Fineberg (L95DSGCT97)"`. Copy that exact quoted name; it is the `APPLE_SIGNING_IDENTITY` secret.
 
 - [ ] **Step 2: Export the certificate.** Keychain Access → login keychain → My Certificates → right-click the Developer ID Application certificate → Export… → format `.p12`, save as `~/Desktop/thoughts-devid.p12`, set a password (this is `APPLE_CERTIFICATE_PASSWORD`). Then:
 
@@ -55,7 +55,7 @@ base64 -i ~/Desktop/thoughts-devid.p12 | pbcopy
 ```
 The clipboard now holds `APPLE_CERTIFICATE`. Delete the `.p12` from the Desktop after adding the secret.
 
-- [ ] **Step 3: App-specific password.** appleid.apple.com → Sign-In and Security → App-Specific Passwords → "+" → name it "Thoughts notarization". The generated password is `APPLE_PASSWORD`. Your Apple ID email is `APPLE_ID`. `APPLE_TEAM_ID` is `JH32293684`.
+- [ ] **Step 3: App-specific password.** appleid.apple.com → Sign-In and Security → App-Specific Passwords → "+" → name it "Thoughts notarization". The generated password is `APPLE_PASSWORD`. Your Apple ID email is `APPLE_ID`. `APPLE_TEAM_ID` is `L95DSGCT97`.
 
 - [ ] **Step 4: Updater key pair** (once, ever; back the private key up outside this Mac):
 
