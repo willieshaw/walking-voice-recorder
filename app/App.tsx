@@ -96,10 +96,9 @@ import { processInBrowser } from "./lib/processInBrowser";
 import "./app.css";
 
 export default function App() {
-  // First run (no API key yet) lands on Settings, where the key panel lives.
-  const [view, setView] = useState<"library" | "memo" | "settings">(
-    hasKeys() ? "library" : "settings",
-  );
+  // A keyless first run is redirected to Settings, where the key panel lives, once the
+  // Keychain read settles (see the boot effect).
+  const [view, setView] = useState<"library" | "memo" | "settings">("library");
   const [summaries, setSummaries] = useState<NoteSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [note, setNote] = useState<Note | null>(null);
@@ -107,7 +106,17 @@ export default function App() {
   const [combined, setCombined] = useState<Combined | null>(null);
   const [combineOpen, setCombineOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [keysReady, setKeysReady] = useState(hasKeys());
+  const [keysReady, setKeysReady] = useState(false);
+  // Nothing renders until the Keychain read settles, so a keyless first run lands on
+  // Settings without first flashing the library.
+  const [booted, setBooted] = useState(false);
+  useEffect(() => {
+    void hasKeys().then((ok) => {
+      setKeysReady(ok);
+      if (!ok) setView("settings");
+      setBooted(true);
+    });
+  }, []);
   const [keysModalOpen, setKeysModalOpen] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   // Where the re-analysis was launched from: the offer banner (shows "Upgrading…" in place)
@@ -916,6 +925,7 @@ export default function App() {
   // note is combined, otherwise the note itself. The header/menu/labels always use the host.
   const activeNote = note ? (combined?.note ?? note) : null;
 
+  if (!booted) return null;
   return (
     <div className={`app${sideCollapsed ? " app-side-collapsed" : ""}`}>
       {sideCollapsed ? (
@@ -1275,7 +1285,7 @@ export default function App() {
             onPurge={(id) => void handlePurge(id)}
             onEmpty={() => void handleEmptyTrash()}
             onKeysSaved={() => {
-              setKeysReady(hasKeys());
+              void hasKeys().then(setKeysReady);
               setView("library");
             }}
           />
@@ -1461,7 +1471,7 @@ export default function App() {
       {keysModalOpen && (
         <KeysModal
           onSaved={() => {
-            setKeysReady(hasKeys());
+            void hasKeys().then(setKeysReady);
             setKeysModalOpen(false);
           }}
           onViewSettings={() => {
