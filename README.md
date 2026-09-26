@@ -54,15 +54,6 @@ npm install
 npm run dev
 ```
 
-With `npm run dev:web` running, the selected single-LED hardware prototype is available at
-`http://localhost:5173/hardware-lab.html`. The preserved four-configuration portfolio study
-is available separately at `http://localhost:5173/hardware-study.html`. Neither page is
-linked from or dependent on the Thoughts application, API keys, note library, or OpenAI
-calls.
-
-[`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) is the canonical specification for the recorder hardware,
-interface, audio pipeline, transfers, security, and acceptance criteria.
-
 Other commands:
 
 ```bash
@@ -114,6 +105,3 @@ to-dos carry timestamps, while `src/core/focus.ts` synchronizes playback and rea
 Processor versions are recorded on notes so prompt changes can make older analyses eligible
 for an in-place upgrade.
 
-The Recorder lab is a functional browser prototype of the product contract. It does not
-claim to emulate microphone acoustics, encrypted flash, radio throughput, firmware timing,
-IP54 sealing, or drop performance; those requirements need dedicated hardware prototypes.
