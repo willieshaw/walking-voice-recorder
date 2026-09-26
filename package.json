@@ -1,6 +1,6 @@
 {
   "name": "walking-voice-recorder",
-  "version": "0.2.0-beta.2",
+  "version": "0.2.0-beta.3",
   "private": true,
   "type": "module",
   "description": "A lab for trying different presentations of a brainstorming walk's audio.",
