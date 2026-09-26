@@ -9,6 +9,11 @@ export default defineConfig({
   build: { outDir: "../dist", emptyOutDir: true },
   plugins: [react()],
   clearScreen: false,
+  // The running version for Settings. npm sets npm_package_version for `npm run` scripts;
+  // the fallback keeps a bare `npx vite build` working.
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? "0.0.0"),
+  },
   resolve: {
     alias: {
       // Isomorphic types + focus store.

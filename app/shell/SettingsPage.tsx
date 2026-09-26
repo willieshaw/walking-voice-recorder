@@ -1,5 +1,6 @@
 // The Settings view: workspace (coming soon), the BYOK OpenAI key panel, backup (save/
-// restore the whole library as one archive through the macOS dialogs), and the trash — "Recently deleted" is just a
+// restore the whole library as one archive through the macOS dialogs), updates (the running
+// version plus a manual "Check now"), and the trash — "Recently deleted" is just a
 // filtered view over the same note summaries (deletedAt set), with restore (clear the
 // label) and purge (permanent) actions.
 import { useState } from "react";
@@ -36,6 +37,8 @@ export function SettingsPage({
   onEmpty,
   onKeysSaved,
   onRestored,
+  appVersion,
+  onCheckForUpdates,
 }: {
   trashed: NoteSummary[];
   /** Every note on this device, trash included — what a backup would contain. */
@@ -47,7 +50,13 @@ export function SettingsPage({
   onKeysSaved: () => void;
   /** Called after an archive restore added notes, so the app can refresh its lists. */
   onRestored: () => void;
+  /** The running version, shown in the Updates section. */
+  appVersion: string;
+  /** Manual update check; resolves a status line for the card, rejects on failure. */
+  onCheckForUpdates: () => Promise<string>;
 }) {
+  const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
   const [busy, setBusy] = useState<"export" | "restore" | null>(null);
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
   // The personal dictionary lives in localStorage; edits apply to future transcriptions.
@@ -169,6 +178,37 @@ export function SettingsPage({
         </button>
       </div>
       {backupStatus && <p className="sp-backup-status">{backupStatus}</p>}
+
+      <div className="sp-section-head">
+        <div>
+          <div className="sp-section-label">Updates</div>
+          <div className="sp-section-count">Thoughts {appVersion}</div>
+        </div>
+      </div>
+      <div className="sp-card sp-backup">
+        <div className="sp-backup-main">
+          <div className="sp-backup-title">Check for updates</div>
+          <div className="sp-backup-sub">
+            New builds install in place and restart the app. Thoughts also checks once at launch.
+          </div>
+        </div>
+        <button
+          className="sp-backup-btn sp-backup-primary"
+          disabled={checking}
+          onClick={() => {
+            setChecking(true);
+            setUpdateStatus(null);
+            onCheckForUpdates()
+              .then(setUpdateStatus, (e: unknown) =>
+                setUpdateStatus(e instanceof Error ? e.message : String(e)),
+              )
+              .finally(() => setChecking(false));
+          }}
+        >
+          {checking ? "Checking…" : "Check now"}
+        </button>
+      </div>
+      {updateStatus && <p className="sp-backup-status">{updateStatus}</p>}
 
       <div className="sp-section-head">
         <div>

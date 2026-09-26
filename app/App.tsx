@@ -13,6 +13,7 @@ import { CombineModal } from "./shell/CombineModal";
 import { SettingsPage } from "./shell/SettingsPage";
 import { KeysModal } from "./shell/KeysModal";
 import { OnboardingPanel } from "./shell/OnboardingPanel";
+import { UpdateStrip } from "./shell/UpdateStrip";
 import { importArchive } from "./lib/importArchive";
 import { isCombined, resolveCombined, type Combined } from "@core/combine";
 
@@ -72,6 +73,13 @@ import {
 } from "./lib/projects";
 import { hasKeys } from "./lib/keys";
 import {
+  checkForUpdate,
+  installUpdate,
+  updateStripState,
+  type AvailableUpdate,
+  type StripPhase,
+} from "./lib/updater";
+import {
   buildDirectives,
   buildKeyMoments,
   buildLayers,
@@ -110,6 +118,8 @@ export default function App() {
   // Nothing renders until the Keychain read settles, so a keyless first run lands on
   // Settings without first flashing the library.
   const [booted, setBooted] = useState(false);
+  const [update, setUpdate] = useState<AvailableUpdate | null>(null);
+  const [updatePhase, setUpdatePhase] = useState<StripPhase>({ phase: "idle" });
   useEffect(() => {
     hasKeys()
       .then((ok) => {
@@ -121,7 +131,11 @@ export default function App() {
         goToSettingsAsRoot();
         setError(`Couldn't read the Keychain: ${e instanceof Error ? e.message : String(e)}`);
       })
-      .finally(() => setBooted(true));
+      .finally(() => {
+        setBooted(true);
+        // One silent check per launch; Settings has a manual check that reports errors.
+        checkForUpdate().then(setUpdate, () => undefined);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [keysModalOpen, setKeysModalOpen] = useState(false);
@@ -776,6 +790,22 @@ export default function App() {
   }
 
   /** Permanent delete of everything in the trash. */
+  async function handleInstallUpdate() {
+    if (!update) return;
+    setUpdatePhase({ phase: "downloading", received: 0, total: null });
+    try {
+      await installUpdate(update, (p) => setUpdatePhase({ phase: "downloading", ...p }));
+    } catch (e) {
+      setUpdatePhase({ phase: "error", message: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  /** Settings' manual check: resolves a human-readable line for the card. */
+  async function handleCheckForUpdates(): Promise<string> {
+    const u = await checkForUpdate();
+    setUpdate(u);
+    setUpdatePhase({ phase: "idle" });
+    return u ? `Thoughts ${u.version} is ready — see the library.` : "You're on the latest version.";
+  }
   async function handleEmptyTrash() {
     const n = trashed.length;
     if (!window.confirm(`Permanently delete ${n} note${n === 1 ? "" : "s"}? This can’t be undone.`)) return;
@@ -1285,6 +1315,8 @@ export default function App() {
             onRestore={(id) => void handleRestore(id)}
             onPurge={(id) => void handlePurge(id)}
             onEmpty={() => void handleEmptyTrash()}
+            appVersion={__APP_VERSION__}
+            onCheckForUpdates={handleCheckForUpdates}
             onKeysSaved={() => {
               void hasKeys().then(setKeysReady, () => setKeysReady(false));
               setView("library");
@@ -1305,6 +1337,13 @@ export default function App() {
               summaries={filterFolder ? live.filter((s) => s.folder === filterFolder) : live}
               title={filterFolder ?? "All notes"}
               onOpen={openMemo}
+              strip={
+                <UpdateStrip
+                  state={updateStripState(update, updatePhase)}
+                  onInstall={() => void handleInstallUpdate()}
+                  onDismiss={() => setUpdatePhase({ phase: "dismissed" })}
+                />
+              }
             />
           )
         ) : (
