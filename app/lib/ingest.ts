@@ -1,6 +1,6 @@
 // Recorder → Thoughts ingest executor. Carries the bytes for one arriving transfer, asks
 // the pure planner (src/core/ingest) what it means, and performs the note-store writes +
-// transcription. The provisional entry point for the device/RecorderLab bridge.
+// transcription. The provisional entry point for the device bridge.
 import type { DeviceRecordingMetadata } from "@core/types";
 import { planIngest, type IngestPlan, type IngestStream } from "@core/ingest";
 import { attachMaster, ingestState, saveNote } from "./notesDb";
