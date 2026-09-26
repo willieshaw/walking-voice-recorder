@@ -129,11 +129,10 @@ export default defineConfig(async ({ command }) => {
         "@engine": fileURLToPath(new URL("./src", import.meta.url)),
       },
     },
+    clearScreen: false,
     server: {
-      open: true, // launch the browser automatically on `npm run dev`
-      // Default to 5173, but honor a PORT env var (e.g. from tooling) so the server can be
-      // placed on an assigned free port.
-      port: process.env.PORT ? Number(process.env.PORT) : 5173,
+      port: 5173,
+      strictPort: true,
       fs: { allow: [".."] }, // allow importing shared modules that live outside app/
     },
   };

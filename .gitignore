@@ -22,3 +22,7 @@ __pycache__/
 *.pyc
 # Third-party reference docs (kept locally, not in git)
 *.docx
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
