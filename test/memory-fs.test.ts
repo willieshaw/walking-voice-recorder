@@ -57,3 +57,18 @@ describe("MemoryFs (in-memory FsPort for tests)", () => {
     await expect(fs.readTextFile("missing")).rejects.toThrow(/missing/);
   });
 });
+
+describe("MemoryFs is as strict as the real plugin", () => {
+  it("writeFile rejects when the parent directory is missing", async () => {
+    const fs = new MemoryFs();
+    await expect(fs.writeTextFile("notes/a/note.json", "{}")).rejects.toThrow(/parent/);
+  });
+
+  it("readFile returns a copy, so callers cannot corrupt stored bytes", async () => {
+    const fs = new MemoryFs();
+    await fs.mkdir("notes");
+    await fs.writeFile("notes/x", new Uint8Array([1, 2]));
+    (await fs.readFile("notes/x"))[0] = 9;
+    expect([...(await fs.readFile("notes/x"))]).toEqual([1, 2]);
+  });
+});

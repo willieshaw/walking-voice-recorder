@@ -4,8 +4,9 @@
 
 const KEYCHAIN_SERVICE: &str = "Thoughts";
 
-/// Read a secret. `Ok(None)` when no item exists yet.
-#[tauri::command]
+/// Read a secret. `Ok(None)` when no item exists yet. `async` moves the blocking Keychain
+/// call (and its possible permission prompt) off the IPC/main thread.
+#[tauri::command(async)]
 fn keychain_get(account: String) -> Result<Option<String>, String> {
     let entry = keyring::Entry::new(KEYCHAIN_SERVICE, &account).map_err(|e| e.to_string())?;
     match entry.get_password() {
@@ -16,7 +17,7 @@ fn keychain_get(account: String) -> Result<Option<String>, String> {
 }
 
 /// Write a secret; an empty value deletes the item.
-#[tauri::command]
+#[tauri::command(async)]
 fn keychain_set(account: String, value: String) -> Result<(), String> {
     let entry = keyring::Entry::new(KEYCHAIN_SERVICE, &account).map_err(|e| e.to_string())?;
     if value.is_empty() {

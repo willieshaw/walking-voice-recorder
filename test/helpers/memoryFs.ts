@@ -1,5 +1,6 @@
 // In-memory FsPort with the same semantics the store relies on: recursive mkdir,
-// atomic rename-over, recursive remove, direct-children readDir.
+// atomic rename-over, recursive remove, direct-children readDir. Strict like the real
+// plugin: writeFile does NOT create parent directories, and reads return copies.
 import type { DirEntry, FsPort } from "../../app/lib/fsPort.js";
 
 const norm = (p: string) => p.replace(/\/+$/, "");
@@ -37,7 +38,7 @@ export class MemoryFs implements FsPort {
   async readFile(path: string): Promise<Uint8Array> {
     const f = this.files.get(norm(path));
     if (!f) throw new Error(`readFile: ${path} is missing`);
-    return f;
+    return f.slice();
   }
 
   async readTextFile(path: string): Promise<string> {
@@ -46,7 +47,7 @@ export class MemoryFs implements FsPort {
 
   async writeFile(path: string, data: Uint8Array): Promise<void> {
     const p = norm(path);
-    this.ensureParents(p);
+    if (!this.dirs.has(parent(p))) throw new Error(`writeFile: parent of ${p} is missing`);
     this.files.set(p, data.slice());
   }
 

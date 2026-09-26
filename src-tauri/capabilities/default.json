@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Thoughts main window: app-data files, the backup zip the user picks, OpenAI.",
+  "description": "Thoughts main window: app-data files and OpenAI. Backup zips the user picks in a dialog are granted at runtime by the dialog plugin.",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -24,8 +24,7 @@
       "identifier": "fs:scope",
       "allow": [
         { "path": "$APPDATA" },
-        { "path": "$APPDATA/**" },
-        { "path": "$HOME/**" }
+        { "path": "$APPDATA/**" }
       ]
     }
   ]

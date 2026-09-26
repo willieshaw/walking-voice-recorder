@@ -206,7 +206,7 @@ Replace the file with:
 const KEYCHAIN_SERVICE: &str = "Thoughts";
 
 /// Read a secret. `Ok(None)` when no item exists yet.
-#[tauri::command]
+#[tauri::command(async)]
 fn keychain_get(account: String) -> Result<Option<String>, String> {
     let entry = keyring::Entry::new(KEYCHAIN_SERVICE, &account).map_err(|e| e.to_string())?;
     match entry.get_password() {
@@ -217,7 +217,7 @@ fn keychain_get(account: String) -> Result<Option<String>, String> {
 }
 
 /// Write a secret; an empty value deletes the item.
-#[tauri::command]
+#[tauri::command(async)]
 fn keychain_set(account: String, value: String) -> Result<(), String> {
     let entry = keyring::Entry::new(KEYCHAIN_SERVICE, &account).map_err(|e| e.to_string())?;
     if value.is_empty() {
@@ -274,15 +274,14 @@ Replace with:
       "identifier": "fs:scope",
       "allow": [
         { "path": "$APPDATA" },
-        { "path": "$APPDATA/**" },
-        { "path": "$HOME/**" }
+        { "path": "$APPDATA/**" }
       ]
     }
   ]
 }
 ```
 
-`$HOME/**` is what lets the app read a backup zip the user picks anywhere and write one where they choose. Everything else lives under `$APPDATA`.
+Backup zips need no home-directory scope: the dialog plugin adds every path the user picks in an open/save dialog to the fs scope at runtime (per launch, per path), and `readAbsolute`/`writeAbsolute` operate on exactly those paths.
 
 - [ ] **Step 4: Compile**
 
@@ -550,7 +549,7 @@ export class MemoryFs implements FsPort {
   async readFile(path: string): Promise<Uint8Array> {
     const f = this.files.get(norm(path));
     if (!f) throw new Error(`readFile: ${path} is missing`);
-    return f;
+    return f.slice(); // a copy, like the real plugin
   }
 
   async readTextFile(path: string): Promise<string> {
@@ -559,7 +558,8 @@ export class MemoryFs implements FsPort {
 
   async writeFile(path: string, data: Uint8Array): Promise<void> {
     const p = norm(path);
-    this.ensureParents(p);
+    // Strict like the real plugin: parents must already exist (the store mkdirs first).
+    if (!this.dirs.has(parent(p))) throw new Error(`writeFile: parent of ${p} is missing`);
     this.files.set(p, data.slice());
   }
 

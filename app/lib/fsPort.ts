@@ -32,6 +32,7 @@ export function setFsPort(p: FsPort): void {
 /** Lazily binds the Tauri implementation so importing the store never touches Tauri
  *  globals in Node. */
 export async function getFsPort(): Promise<FsPort> {
-  if (!port) port = (await import("./tauriFs")).tauriFs;
+  const bound = port ?? (await import("./tauriFs")).tauriFs;
+  port ??= bound; // a setFsPort() that landed while the import was in flight wins
   return port;
 }
