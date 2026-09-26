@@ -1,6 +1,7 @@
 /* The "Margin" cool palette: white/zinc surfaces, Newsreader serif for titles + reading,
    Helvetica Neue for UI, blue accent. Tokens only — swap the accent here and everything
    follows. */
+@import "./fonts.css";
 :root {
   --bg: #ffffff;
   --surface: #ffffff;
