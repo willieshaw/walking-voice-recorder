@@ -11,6 +11,6 @@ export async function importArchive(): Promise<{ added: number; skipped: number 
   if (!path) return null;
   const bytes = await readAbsolute(path);
   // plugin-fs's readFile yields an ArrayBuffer-backed array; readAbsolute's signature widens it.
-  const file = new File([bytes as Uint8Array<ArrayBuffer>], path.split("/").pop() ?? "backup.zip");
+  const file = new File([bytes], path.split("/").pop() ?? "backup.zip");
   return restoreBackup(file);
 }

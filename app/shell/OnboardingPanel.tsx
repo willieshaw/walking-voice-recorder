@@ -42,7 +42,11 @@ export function OnboardingPanel({
           Start fresh
         </button>
       </div>
-      {status && <p className="ob-status">{status}</p>}
+      {status && (
+        <p className="ob-status" role="status">
+          {status}
+        </p>
+      )}
     </div>
   );
 }

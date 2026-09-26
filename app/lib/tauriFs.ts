@@ -35,7 +35,7 @@ export const tauriFs: FsPort = {
 };
 
 /** Read a file at an absolute path the user chose in an open dialog. */
-export function readAbsolute(path: string): Promise<Uint8Array> {
+export function readAbsolute(path: string): Promise<Uint8Array<ArrayBuffer>> {
   return readFile(path);
 }
 
