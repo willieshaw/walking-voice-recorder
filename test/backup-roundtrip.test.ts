@@ -1,6 +1,7 @@
 // The zip is the only path notes take from the web app to the desktop app, so this pins
-// (1) a full export→import round trip through the file store and (2) that an archive the
-// web app actually produced (July 2026, before updatedAt and settings existed) imports.
+// (1) a full export→import round trip through the file store and (2) that a version-1
+// archive in the exact shape the July 2026 web build produced (before updatedAt and
+// settings existed) imports. The fixture's note and audio are synthetic (a 2 s tone).
 import { readFile } from "node:fs/promises";
 import { beforeEach, describe, expect, it } from "vitest";
 import { setFsPort } from "../app/lib/fsPort.js";
@@ -57,11 +58,11 @@ describe("backup archive round trip (migration contract v1)", () => {
     const res = await restoreBackup(new File([zip], "thoughts-backup-v1.zip"));
     expect(res).toEqual({ added: 1, skipped: 0 });
     const [n] = await dumpNotes();
-    expect(n.title).toBe("Cities & memory");
-    expect(n.data.folder).toBe("Teaching");
-    expect(n.data.transcript?.text.length ?? 0).toBeGreaterThan(0);
-    expect(n.audio.size).toBeGreaterThan(100_000);
-    expect(n.audio.type).toBe("audio/mp4");
+    expect(n.title).toBe("Synthetic tide note");
+    expect(n.data.folder).toBe("Fixtures");
+    expect(n.data.transcript?.paragraphs.length).toBe(2);
+    expect(n.audio.size).toBe(64_044); // 44-byte WAV header + 2 s of 16 kHz 16-bit mono
+    expect(n.audio.type).toBe("audio/wav");
     // Legacy records have no updatedAt; listing falls back to createdAt.
     expect(n.updatedAt).toBeUndefined();
     expect((await listNotes())[0].updatedAt).toBe(n.createdAt);
