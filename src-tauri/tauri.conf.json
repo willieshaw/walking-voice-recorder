@@ -27,7 +27,11 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg"],
+    "targets": [
+      "app",
+      "dmg"
+    ],
+    "createUpdaterArtifacts": true,
     "macOS": {
       "minimumSystemVersion": "10.15"
     },
@@ -38,5 +42,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEFENjM3RUJCQUIyRTc2QTcKUldTbmRpNnJ1MzVqclZqTVovRGFVVjNQSXIyUkpKcjBnVVNDQTZCUnBkQVIrZ2lKN2YvL0Z3dDAK",
+      "endpoints": [
+        "https://github.com/willieshaw/walking-voice-recorder/releases/latest/download/latest.json"
+      ]
+    }
   }
 }
