@@ -13,6 +13,8 @@ import { MemoMenu } from "./shell/MemoMenu";
 import { CombineModal } from "./shell/CombineModal";
 import { SettingsPage } from "./shell/SettingsPage";
 import { KeysModal } from "./shell/KeysModal";
+import { OnboardingPanel } from "./shell/OnboardingPanel";
+import { importArchive } from "./lib/importArchive";
 import { isCombined, resolveCombined, type Combined } from "@core/combine";
 
 /** The subset of an annotation a user can mutate (currently just a to-do's done state). */
@@ -251,6 +253,7 @@ export default function App() {
   combinedRef.current = !!combined;
 
   const [notesLoaded, setNotesLoaded] = useState(false);
+  const [startedFresh, setStartedFresh] = useState(false);
   useEffect(() => {
     // Drop trashed notes whose 30-day window lapsed, then load the rest.
     void purgeExpired()
@@ -1290,12 +1293,23 @@ export default function App() {
             }}
           />
         ) : view === "library" ? (
-          <LibraryFeed
-            summaries={filterFolder ? live.filter((s) => s.folder === filterFolder) : live}
-            title={filterFolder ?? "All notes"}
-            banner={notesLoaded ? <ExportBanner notes={summaries} /> : null}
-            onOpen={openMemo}
-          />
+          notesLoaded && summaries.length === 0 && !startedFresh ? (
+            <OnboardingPanel
+              onImport={async () => {
+                const r = await importArchive();
+                if (r?.added) setSummaries(await listNotes());
+                return r;
+              }}
+              onStartFresh={() => setStartedFresh(true)}
+            />
+          ) : (
+            <LibraryFeed
+              summaries={filterFolder ? live.filter((s) => s.folder === filterFolder) : live}
+              title={filterFolder ?? "All notes"}
+              banner={notesLoaded ? <ExportBanner notes={summaries} /> : null}
+              onOpen={openMemo}
+            />
+          )
         ) : (
           <div className="memo">
             <div className="memo-top">

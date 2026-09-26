@@ -1,13 +1,13 @@
-// The Settings view: workspace (coming soon), the BYOK OpenAI key panel, backup (download/
-// restore the whole library as one archive), and the trash — "Recently deleted" is just a
+// The Settings view: workspace (coming soon), the BYOK OpenAI key panel, backup (save/
+// restore the whole library as one archive through the macOS dialogs), and the trash — "Recently deleted" is just a
 // filtered view over the same note summaries (deletedAt set), with restore (clear the
 // label) and purge (permanent) actions.
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { SettingsKeys } from "../components/SettingsKeys";
 import { formatTime } from "../components/AudioPlayer";
 import { TagChips } from "./TagChips";
-import { buildBackup, restoreBackup } from "../lib/backup";
 import { exportLibrary } from "../lib/exportLibrary";
+import { importArchive } from "../lib/importArchive";
 import { getDictionary, setDictionary } from "../lib/dictionary";
 import { TRASH_RETENTION_DAYS, type NoteSummary } from "../lib/notesDb";
 import "./settings-page.css";
@@ -50,7 +50,6 @@ export function SettingsPage({
 }) {
   const [busy, setBusy] = useState<"export" | "restore" | null>(null);
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
   // The personal dictionary lives in localStorage; edits apply to future transcriptions.
   const [terms, setTerms] = useState<string[]>(getDictionary);
 
@@ -63,8 +62,8 @@ export function SettingsPage({
     setBusy("export");
     setBackupStatus(null);
     try {
-      const { count, filename } = await exportLibrary();
-      setBackupStatus(`Saved ${count} note${count === 1 ? "" : "s"} to ${filename}.`);
+      const r = await exportLibrary();
+      if (r) setBackupStatus(`Saved ${r.count} note${r.count === 1 ? "" : "s"} to ${r.filename}.`);
     } catch (e) {
       setBackupStatus(e instanceof Error ? e.message : String(e));
     } finally {
@@ -72,36 +71,19 @@ export function SettingsPage({
     }
   }
 
-  async function restoreFromFile(file: File) {
+  async function restoreFromArchive() {
     setBusy("restore");
     setBackupStatus(null);
     try {
-      const { added, skipped } = await restoreBackup(file);
-      setBackupStatus(
-        `Restored ${added} note${added === 1 ? "" : "s"}` +
-          (skipped ? ` · ${skipped} already here` : "") +
-          ".",
-      );
-      if (added) onRestored();
-    } catch (e) {
-      setBackupStatus(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  /** DEV ONLY: store the current library as the on-disk seed the app auto-restores from
-   *  when the dev browser's storage gets wiped (see /api/dev-seed in vite.config.ts). */
-  async function saveDevSeed() {
-    setBusy("export");
-    setBackupStatus(null);
-    try {
-      const { blob, count } = await buildBackup();
-      const res = await fetch("/api/dev-seed", { method: "POST", body: blob });
-      if (!res.ok) throw new Error(`Seed save failed (HTTP ${res.status}).`);
-      setBackupStatus(
-        `Dev seed saved (${count} note${count === 1 ? "" : "s"}) — auto-restores whenever dev storage is wiped.`,
-      );
+      const r = await importArchive();
+      if (r) {
+        setBackupStatus(
+          `Restored ${r.added} note${r.added === 1 ? "" : "s"}` +
+            (r.skipped ? ` · ${r.skipped} already here` : "") +
+            ".",
+        );
+        if (r.added) onRestored();
+      }
     } catch (e) {
       setBackupStatus(e instanceof Error ? e.message : String(e));
     } finally {
@@ -167,7 +149,7 @@ export function SettingsPage({
           <div className="sp-backup-sub">
             One archive with every recording plus its transcript, analyses, and labels, and your
             dictionary, folders, and projects.
-            Notes live only in this browser — keep a copy somewhere safe. Restoring merges
+            Notes live only on this Mac — keep a copy somewhere safe. Restoring merges
             by note and never overwrites what's already here.
           </div>
         </div>
@@ -180,32 +162,11 @@ export function SettingsPage({
         </button>
         <button
           className="sp-backup-btn"
-          onClick={() => fileRef.current?.click()}
+          onClick={() => void restoreFromArchive()}
           disabled={busy !== null}
         >
           {busy === "restore" ? "Restoring…" : "Restore…"}
         </button>
-        {import.meta.env.DEV && (
-          <button
-            className="sp-backup-btn"
-            title="Dev only: auto-restores when the dev browser's storage is wiped"
-            onClick={() => void saveDevSeed()}
-            disabled={busy !== null || noteCount === 0}
-          >
-            Save as dev seed
-          </button>
-        )}
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".zip,application/zip"
-          hidden
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            e.target.value = ""; // allow picking the same file again
-            if (f) void restoreFromFile(f);
-          }}
-        />
       </div>
       {backupStatus && <p className="sp-backup-status">{backupStatus}</p>}
 
