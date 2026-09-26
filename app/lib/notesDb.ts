@@ -7,6 +7,8 @@ export interface NoteSummary {
   title: string;
   durationSec: number;
   createdAt: number;
+  /** Last write to this note (any field). Legacy records report createdAt. */
+  updatedAt: number;
   /** Feed preview: the AI summary (default variant), falling back to the transcript's
    *  opening for notes that don't have one yet. */
   snippet: string;
@@ -26,6 +28,8 @@ export interface StoredNote {
   title: string;
   durationSec: number;
   createdAt: number;
+  /** Stamped on every write. Optional because archives from before this field lack it. */
+  updatedAt?: number;
   data: Omit<Note, "audioUrl">;
   audio: Blob;
 }
@@ -39,29 +43,55 @@ function openDb(): Promise<IDBDatabase> {
     req.onupgradeneeded = () => {
       req.result.createObjectStore(STORE, { keyPath: "id" });
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      // A future schema upgrade (open with a higher version) asks every live connection to
+      // step aside; without this the upgrade would sit in `blocked` for as long as we're open.
+      db.onversionchange = () => db.close();
+      resolve(db);
+    };
     req.onerror = () => reject(req.error);
   });
 }
 
-function tx<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+/** Open a connection, run one transaction on the notes store, and close the connection once
+ *  that transaction settles. Connections are per-call, so nothing lingers afterwards to block
+ *  a later deleteDatabase() or a schema-upgrade open(). close() itself waits for the
+ *  in-flight transaction, so wiring it to every terminal event is safe. */
+function withStore<T>(
+  mode: IDBTransactionMode,
+  run: (store: IDBObjectStore, resolve: (value: T) => void, reject: (error: unknown) => void) => void,
+): Promise<T> {
   return openDb().then(
     (db) =>
       new Promise<T>((resolve, reject) => {
-        const request = fn(db.transaction(STORE, mode).objectStore(STORE));
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
+        const transaction = db.transaction(STORE, mode);
+        const release = () => db.close();
+        transaction.oncomplete = release;
+        transaction.onerror = release;
+        transaction.onabort = release;
+        run(transaction.objectStore(STORE), resolve, reject);
       }),
   );
 }
 
+function tx<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  return withStore<T>(mode, (store, resolve, reject) => {
+    const request = fn(store);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
 export async function saveNote(note: Note, audio: Blob): Promise<void> {
   const { audioUrl: _drop, ...data } = note;
+  const now = Date.now();
   const stored: StoredNote = {
     id: note.id,
     title: note.title,
     durationSec: note.durationSec,
-    createdAt: Date.now(),
+    createdAt: now,
+    updatedAt: now,
     data,
     audio,
   };
@@ -76,11 +106,12 @@ async function allByRecency(): Promise<StoredNote[]> {
 
 export async function listNotes(): Promise<NoteSummary[]> {
   const all = await allByRecency();
-  return all.map(({ id, title, durationSec, createdAt, data }) => ({
+  return all.map(({ id, title, durationSec, createdAt, updatedAt, data }) => ({
       id,
       title,
       durationSec,
       createdAt,
+      updatedAt: updatedAt ?? createdAt,
       snippet: (data.summary ?? data.transcript?.text ?? "")
         .replace(/\s+/g, " ")
         .trim()
@@ -137,22 +168,19 @@ export async function getNote(id: string): Promise<Note | null> {
  *  overlapping readwrite transactions on the store, so two concurrent patches
  *  (e.g. a tag commit racing a pin click) can't clobber each other. */
 function mutateNote(id: string, mutate: (stored: StoredNote) => void): Promise<void> {
-  return openDb().then(
-    (db) =>
-      new Promise<void>((resolve, reject) => {
-        const store = db.transaction(STORE, "readwrite").objectStore(STORE);
-        const get = store.get(id);
-        get.onerror = () => reject(get.error);
-        get.onsuccess = () => {
-          const stored = get.result as StoredNote | undefined;
-          if (!stored) return resolve();
-          mutate(stored);
-          const put = store.put(stored);
-          put.onsuccess = () => resolve();
-          put.onerror = () => reject(put.error);
-        };
-      }),
-  );
+  return withStore<void>("readwrite", (store, resolve, reject) => {
+    const get = store.get(id);
+    get.onerror = () => reject(get.error);
+    get.onsuccess = () => {
+      const stored = get.result as StoredNote | undefined;
+      if (!stored) return resolve();
+      mutate(stored);
+      stored.updatedAt = Date.now();
+      const put = store.put(stored);
+      put.onsuccess = () => resolve();
+      put.onerror = () => reject(put.error);
+    };
+  });
 }
 
 /** The recorder-ingest read model for one recording (null = no note yet). `hasMaster` is

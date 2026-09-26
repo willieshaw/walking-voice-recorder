@@ -7,6 +7,7 @@ import { SettingsKeys } from "../components/SettingsKeys";
 import { formatTime } from "../components/AudioPlayer";
 import { TagChips } from "./TagChips";
 import { buildBackup, restoreBackup } from "../lib/backup";
+import { exportLibrary } from "../lib/exportLibrary";
 import { getDictionary, setDictionary } from "../lib/dictionary";
 import { TRASH_RETENTION_DAYS, type NoteSummary } from "../lib/notesDb";
 import "./settings-page.css";
@@ -62,12 +63,7 @@ export function SettingsPage({
     setBusy("export");
     setBackupStatus(null);
     try {
-      const { blob, count, filename } = await buildBackup();
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(a.href);
+      const { count, filename } = await exportLibrary();
       setBackupStatus(`Saved ${count} note${count === 1 ? "" : "s"} to ${filename}.`);
     } catch (e) {
       setBackupStatus(e instanceof Error ? e.message : String(e));
