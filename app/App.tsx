@@ -5,6 +5,7 @@ import { formatTime } from "./components/AudioPlayer";
 import { DropZone } from "./components/DropZone";
 import { EditableTitle } from "./components/EditableTitle";
 import { LibraryFeed, formatNoteDate } from "./shell/LibraryFeed";
+import { ExportBanner } from "./shell/ExportBanner";
 import { StickyPlayer } from "./shell/StickyPlayer";
 import { ReadingPane } from "./shell/ReadingPane";
 import { DigestCard } from "./shell/DigestCard";
@@ -484,13 +485,20 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notesLoaded, project, projects.join(" ")]);
 
+  /** Mirror a store write into the in-memory list, stamping updatedAt the way notesDb does,
+   *  so the export banner sees the change without a reload. */
+  function touchSummaries(match: (s: NoteSummary) => boolean, patch: Partial<NoteSummary>) {
+    const updatedAt = Date.now();
+    setSummaries((prev) => prev.map((s) => (match(s) ? { ...s, ...patch, updatedAt } : s)));
+  }
+
   /** Persist label-facet changes (tags/folder/pinned) and mirror them into state. */
   async function patchLabels(
     id: string,
     patch: Partial<Pick<Note, "tags" | "folder" | "pinned">>,
   ) {
     await updateNote(id, patch);
-    setSummaries((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+    touchSummaries((s) => s.id === id, patch);
     setNote((prev) => (prev && prev.id === id ? { ...prev, ...patch } : prev));
   }
 
@@ -502,6 +510,7 @@ export default function App() {
     if (!target) return;
     const annotations = await updateAnnotation(target.id, a.id, patch);
     setNote((prev) => (prev && prev.id === target.id ? { ...prev, annotations } : prev));
+    touchSummaries((s) => s.id === target.id, {});
   }
 
   /** Rename a folder everywhere: the registry, every note carrying the old label, and any
@@ -519,9 +528,7 @@ export default function App() {
     renameFolder(oldName, trimmed, project);
     const affected = inProject.filter((s) => s.folder === oldName);
     await Promise.all(affected.map((s) => updateNote(s.id, { folder: trimmed })));
-    setSummaries((prev) =>
-      prev.map((s) => (s.folder === oldName ? { ...s, folder: trimmed } : s)),
-    );
+    touchSummaries((s) => s.folder === oldName, { folder: trimmed });
     setNote((prev) => (prev && prev.folder === oldName ? { ...prev, folder: trimmed } : prev));
     if (filterFolder === oldName) setFilterFolder(trimmed);
     setFolderBump((n) => n + 1);
@@ -538,6 +545,7 @@ export default function App() {
     const text = await buildSummary(target.transcript, variantId);
     const summaries = await addSummaryVariant(target.id, variantId, text);
     setNote((prev) => (prev && prev.id === target.id ? { ...prev, summaries } : prev));
+    touchSummaries((s) => s.id === target.id, {});
   }
 
   function openMemo(id: string) {
@@ -584,11 +592,7 @@ export default function App() {
     // Renaming Default also captures the unlabeled legacy notes it hosts.
     const affected = summaries.filter((s) => (s.project ?? DEFAULT_PROJECT) === oldName);
     await Promise.all(affected.map((s) => updateNote(s.id, { project: trimmed })));
-    setSummaries((prev) =>
-      prev.map((s) =>
-        (s.project ?? DEFAULT_PROJECT) === oldName ? { ...s, project: trimmed } : s,
-      ),
-    );
+    touchSummaries((s) => (s.project ?? DEFAULT_PROJECT) === oldName, { project: trimmed });
     setProjectBump((n) => n + 1);
     if (project === oldName) {
       setProject(trimmed);
@@ -609,11 +613,7 @@ export default function App() {
     const newLabel = dest === DEFAULT_PROJECT ? undefined : dest;
     const affected = summaries.filter((s) => (s.project ?? DEFAULT_PROJECT) === name);
     await Promise.all(affected.map((s) => updateNote(s.id, { project: newLabel })));
-    setSummaries((prev) =>
-      prev.map((s) =>
-        (s.project ?? DEFAULT_PROJECT) === name ? { ...s, project: newLabel } : s,
-      ),
-    );
+    touchSummaries((s) => (s.project ?? DEFAULT_PROJECT) === name, { project: newLabel });
     setProjectBump((n) => n + 1);
     if (project === name) switchProject(dest);
   }
@@ -630,7 +630,7 @@ export default function App() {
 
   async function handleRename(id: string, title: string) {
     await renameNote(id, title);
-    setSummaries((prev) => prev.map((s) => (s.id === id ? { ...s, title } : s)));
+    touchSummaries((s) => s.id === id, { title });
     setNote((prev) => (prev && prev.id === id ? { ...prev, title } : prev));
   }
 
@@ -648,6 +648,7 @@ export default function App() {
     const patch = await updateChunkText(target.id, mode, chunkId, text);
     setNote((prev) => (prev && prev.id === target.id ? { ...prev, ...patch } : prev));
     if (patch.transcript) setSummaries(await listNotes()); // feed snippet may have changed
+    else touchSummaries((s) => s.id === target.id, {});
   }
 
   /** Commit one corrected paragraph (M5.1). Text-only — timestamps/ids survive, and by
@@ -743,7 +744,7 @@ export default function App() {
   async function handleDelete(id: string) {
     const deletedAt = Date.now();
     await updateNote(id, { deletedAt });
-    setSummaries((prev) => prev.map((s) => (s.id === id ? { ...s, deletedAt } : s)));
+    touchSummaries((s) => s.id === id, { deletedAt });
     if (selectedId === id) {
       setSelectedId(null);
       setNote(null);
@@ -753,7 +754,7 @@ export default function App() {
 
   async function handleRestore(id: string) {
     await updateNote(id, { deletedAt: undefined });
-    setSummaries((prev) => prev.map((s) => (s.id === id ? { ...s, deletedAt: undefined } : s)));
+    touchSummaries((s) => s.id === id, { deletedAt: undefined });
   }
 
   /** Permanent delete of one trashed note (audio included). */
@@ -796,6 +797,7 @@ export default function App() {
     setUpgradeError(null);
     await updateNote(target.id, { upgradeDismissed });
     setNote((prev) => (prev && prev.id === target.id ? { ...prev, upgradeDismissed } : prev));
+    touchSummaries((s) => s.id === target.id, {});
   }
 
   async function handleUpgrade(source: "banner" | "menu" = "banner") {
@@ -835,6 +837,7 @@ export default function App() {
       setNote((prev) => (prev && prev.id === target.id ? { ...prev, ...patch } : prev));
       // The feed preview derives from the summary — refresh it if we rebuilt one.
       if (stale.includes("summary")) setSummaries(await listNotes());
+      else touchSummaries((s) => s.id === target.id, {});
     } catch (e) {
       setUpgradeError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -891,6 +894,7 @@ export default function App() {
     if (!note) return;
     const value = order.length >= 2 ? order : undefined;
     await updateNote(note.id, { combinedFrom: value });
+    touchSummaries((s) => s.id === note.id, {});
     const host = { ...note, combinedFrom: value };
     setCombineOpen(false);
     resetFocus();
@@ -1279,6 +1283,7 @@ export default function App() {
           <LibraryFeed
             summaries={filterFolder ? live.filter((s) => s.folder === filterFolder) : live}
             title={filterFolder ?? "All notes"}
+            banner={notesLoaded ? <ExportBanner notes={summaries} /> : null}
             onOpen={openMemo}
           />
         ) : (
