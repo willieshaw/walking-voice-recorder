@@ -3,6 +3,7 @@
 //   notes/<id>/audio.<ext> the recording, byte-for-byte
 // Writes are temp-file + rename, so a crash never leaves a half-written note. A cache of
 // every note.json (never the audio) is held in memory after the first listing.
+// Note ids are validated as plain path segments before anything is written under them.
 import type { Annotation, Chunk, FormattingLayers, Note, Transcript } from "@core/types";
 import { getFsPort } from "./fsPort";
 
@@ -58,6 +59,14 @@ const extFor = (mime: string) => EXT[mime.split(";")[0].trim().toLowerCase()] ??
 const dirOf = (id: string) => `${NOTES_DIR}/${id}`;
 const recordPath = (id: string) => `${dirOf(id)}/${RECORD}`;
 const audioPath = (id: string, mime: string) => `${dirOf(id)}/audio.${extFor(mime)}`;
+
+/** An id becomes a folder name, so it must be one plain path segment. */
+const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+function assertSafeId(id: string): void {
+  if (typeof id !== "string" || !SAFE_ID.test(id) || id === "." || id === "..") {
+    throw new Error(`Invalid note id: ${JSON.stringify(id)}`);
+  }
+}
 
 /** Records are plain JSON, so a JSON round-trip is a faithful deep copy. Callers get copies
  *  (as IndexedDB's structured clone gave them), so nobody can mutate the cache by accident. */
@@ -137,6 +146,17 @@ async function readAudio(rec: NoteRecord): Promise<Blob> {
   return new Blob([bytes as Uint8Array<ArrayBuffer>], { type: rec.audioType });
 }
 
+/** readAudio, but null when the audio file is gone. Other read failures still throw. */
+async function readAudioIfPresent(rec: NoteRecord): Promise<Blob | null> {
+  try {
+    return await readAudio(rec);
+  } catch (err) {
+    const fs = await getFsPort();
+    if (await fs.exists(audioPath(rec.id, rec.audioType))) throw err;
+    return null;
+  }
+}
+
 /** Atomic read-modify-write of one record under the note's lock. The mutation runs on a
  *  copy, so a failed write leaves the cache matching the disk. */
 function mutateNote(id: string, mutate: (rec: NoteRecord) => void): Promise<void> {
@@ -151,6 +171,7 @@ function mutateNote(id: string, mutate: (rec: NoteRecord) => void): Promise<void
 }
 
 export async function saveNote(note: Note, audio: Blob): Promise<void> {
+  assertSafeId(note.id);
   const { audioUrl: _drop, ...data } = note;
   const now = Date.now();
   const rec: NoteRecord = {
@@ -163,8 +184,13 @@ export async function saveNote(note: Note, audio: Blob): Promise<void> {
     audioType: audio.type,
   };
   await withLock(note.id, async () => {
+    const prev = (await records()).get(note.id);
     await writeAudio(note.id, audio);
     await writeRecord(rec);
+    // Re-saving with a different audio type: drop the stale file once the record lands.
+    if (prev && audioPath(note.id, prev.audioType) !== audioPath(note.id, audio.type)) {
+      await (await getFsPort()).remove(audioPath(note.id, prev.audioType));
+    }
   });
 }
 
@@ -226,10 +252,12 @@ export async function searchNotes(query: string, project?: string): Promise<Sear
 export async function getNote(id: string): Promise<Note | null> {
   const rec = (await records()).get(id);
   if (!rec) return null;
+  const audio = await readAudioIfPresent(rec);
+  if (!audio) throw new Error(`Note ${id} has no audio file`);
   return {
     ...copy(rec.data),
     createdAt: rec.createdAt,
-    audioUrl: URL.createObjectURL(await readAudio(rec)),
+    audioUrl: URL.createObjectURL(audio),
   };
 }
 
@@ -352,35 +380,51 @@ export async function updateChunkText(
 }
 
 /** Every stored note, raw — the backup archive's source. Includes trashed notes, so a
- *  restored library is byte-faithful (they come back still in the trash). */
+ *  restored library is byte-faithful (they come back still in the trash). A note whose
+ *  audio file is missing is skipped with a warning, so one damaged folder can't block
+ *  every backup. */
 export async function dumpNotes(): Promise<StoredNote[]> {
   const all = await allByRecency();
-  return Promise.all(
-    all.map(async (rec) => {
+  const dumped = await Promise.all(
+    all.map(async (rec): Promise<StoredNote | null> => {
+      const audio = await readAudioIfPresent(rec);
+      if (!audio) {
+        console.warn(`dumpNotes: skipping note ${rec.id}, its audio file is missing`);
+        return null;
+      }
       const { audioType: _type, ...rest } = copy(rec);
-      return { ...rest, audio: await readAudio(rec) };
+      return { ...rest, audio };
     }),
   );
+  return dumped.filter((n): n is StoredNote => n !== null);
 }
 
 /** Merge notes into the store by id. Existing ids are left untouched — restore never
- *  overwrites what's already here, so re-importing an archive is a no-op. */
+ *  overwrites what's already here, so re-importing an archive is a no-op. Records whose id
+ *  is not a plain path segment are skipped. The existence check runs under the note's lock,
+ *  so an import racing a save of the same id can't write over it. */
 export async function importNotes(
   notes: StoredNote[],
 ): Promise<{ added: number; skipped: number }> {
   let added = 0;
   let skipped = 0;
   for (const n of notes) {
-    if ((await records()).has(n.id)) {
+    try {
+      assertSafeId(n.id);
+    } catch (err) {
+      console.warn(`importNotes: skipping a record: ${(err as Error).message}`);
       skipped++;
       continue;
     }
     const { audio, ...rest } = n;
-    await withLock(n.id, async () => {
+    const wrote = await withLock(n.id, async () => {
+      if ((await records()).has(n.id)) return false;
       await writeAudio(n.id, audio);
       await writeRecord({ ...rest, audioType: audio.type });
+      return true;
     });
-    added++;
+    if (wrote) added++;
+    else skipped++;
   }
   return { added, skipped };
 }
@@ -407,11 +451,17 @@ export async function purgeExpired(): Promise<void> {
   const expired = [...all.values()].filter((n) => n.data.deletedAt && n.data.deletedAt < cutoff);
   await Promise.all(expired.map((n) => purgeNote(n.id)));
   const entries = await fs.readDir(NOTES_DIR);
+  // Orphan removal runs under the note's lock and re-checks there, so a save of the same
+  // id (e.g. a launch-time ingest) either lands first and keeps the folder, or waits for
+  // the removal and then rewrites it.
   await Promise.all(
     entries
-      // A folder whose note is mid-write (lock held) is not an orphan yet.
-      .filter((e) => e.isDirectory && !all.has(e.name) && !locks.has(e.name))
-      .map((e) => fs.remove(dirOf(e.name))),
+      .filter((e) => e.isDirectory && !all.has(e.name))
+      .map((e) =>
+        withLock(e.name, async () => {
+          if (!(await records()).has(e.name)) await fs.remove(dirOf(e.name));
+        }),
+      ),
   );
 }
 

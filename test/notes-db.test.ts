@@ -186,4 +186,103 @@ describe("notesDb on files", () => {
     expect((await searchNotes("tide")).map((h) => h.id).sort()).toEqual(["a", "b"]);
     expect((await searchNotes("tide", "Sea")).map((h) => h.id)).toEqual(["a"]);
   });
+
+  it("a note whose audio file is missing is skipped by dumpNotes, not fatal", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await saveNote(note("a"), wav("a"));
+    await saveNote(note("b"), wav("b"));
+    await fs.remove("notes/a/audio.wav");
+    const dumped = await dumpNotes();
+    expect(dumped.map((n) => n.id)).toEqual(["b"]);
+    expect(await text(dumped[0].audio)).toBe("b");
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("a"));
+    await expect(getNote("a")).rejects.toThrow(/no audio/);
+    // The record still exists, so the feed still lists it.
+    expect((await listNotes()).map((s) => s.id).sort()).toEqual(["a", "b"]);
+    warn.mockRestore();
+  });
+
+  it("saveNote rejects an id that is not a plain path segment", async () => {
+    await expect(saveNote(note("a/b"), wav())).rejects.toThrow(/Invalid note id/);
+    await expect(saveNote(note(".."), wav())).rejects.toThrow(/Invalid note id/);
+    expect(await fs.exists("notes/a")).toBe(false);
+  });
+
+  it("importNotes skips a record with a hostile id and writes nothing outside notes/", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const res = await importNotes([
+      { id: "../x", title: "x", durationSec: 1, createdAt: 1, data: { id: "../x", title: "x", durationSec: 1 }, audio: wav() },
+      { id: "ok-1", title: "ok", durationSec: 1, createdAt: 2, data: { id: "ok-1", title: "ok", durationSec: 1 }, audio: wav() },
+    ]);
+    expect(res).toEqual({ added: 1, skipped: 1 });
+    expect(await fs.exists("notes/ok-1/note.json")).toBe(true);
+    for (const p of [...fs.files.keys(), ...fs.dirs]) {
+      expect(p.split("/")).not.toContain("..");
+    }
+    expect([...fs.files.keys()].every((p) => p.startsWith("notes/"))).toBe(true);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("orphan cleanup takes the note lock, so a save arriving mid-removal survives", async () => {
+    // A MemoryFs whose remove of notes/r1 parks until released. That opens the window the
+    // real (async IPC) fs has between "this folder is an orphan" and the removal landing.
+    let reached!: () => void;
+    const removing = new Promise<void>((r) => (reached = r));
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    class GatedFs extends MemoryFs {
+      override async remove(path: string): Promise<void> {
+        if (path === "notes/r1") {
+          reached();
+          await gate;
+        }
+        return super.remove(path);
+      }
+    }
+    fs = new GatedFs();
+    setFsPort(fs);
+    await fs.mkdir("notes/r1");
+    await fs.writeFile("notes/r1/audio.wav", new Uint8Array([1])); // orphan: no note.json
+
+    const purging = purgeExpired();
+    await removing; // purgeExpired has decided r1 is an orphan and is removing it
+    const saving = saveNote(note("r1"), wav());
+    // Give an unlocked save every chance to finish before the removal lands. Under the lock
+    // it cannot start yet: the removal runs first, then the save rewrites the folder.
+    await new Promise((r) => setTimeout(r, 0));
+    release();
+    await Promise.all([purging, saving]);
+
+    expect(await fs.exists("notes/r1/note.json")).toBe(true);
+    expect(await fs.exists("notes/r1/audio.wav")).toBe(true);
+    expect((await listNotes()).map((s) => s.id)).toContain("r1");
+  });
+
+  it("importNotes checks for an existing id under the lock (a racing save wins)", async () => {
+    // The save starts first, so it holds the lock; the import must see its record and skip.
+    const [, res] = await Promise.all([
+      saveNote(note("z"), wav("live")),
+      importNotes([
+        { id: "z", title: "archive", durationSec: 1, createdAt: 1, data: { id: "z", title: "archive", durationSec: 1 }, audio: wav("archive") },
+      ]),
+    ]);
+    expect(res).toEqual({ added: 0, skipped: 1 });
+    const dumped = await dumpNotes();
+    expect(dumped.filter((n) => n.id === "z")).toHaveLength(1);
+    const [z] = dumped;
+    const audio = await text(z.audio);
+    expect(z.title).toBe(audio === "live" ? "z" : "archive"); // never a mixed record
+    expect(audio).toBe("live");
+  });
+
+  it("re-saving a note with a new audio type removes the stale audio file", async () => {
+    await saveNote(note("a"), new Blob(["1"], { type: "audio/mp4" }));
+    await saveNote(note("a"), wav());
+    expect(await fs.exists("notes/a/audio.m4a")).toBe(false);
+    expect(await fs.exists("notes/a/audio.wav")).toBe(true);
+    const dumped = await dumpNotes();
+    expect(dumped).toHaveLength(1);
+    expect(dumped[0].audio.type).toBe("audio/wav");
+  });
 });
