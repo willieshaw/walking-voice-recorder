@@ -3,8 +3,13 @@
 //   manifest.json     the full stored data of every note (transcripts, analyses, labels,
 //                     version stamps) minus the audio bytes
 //   audio/<noteId>    each note's recording, byte-for-byte
-// Restore merges by note id and never overwrites — re-importing an archive is a no-op.
+// The manifest also carries the device settings that live only in localStorage (dictionary,
+// project and folder registries) under an optional `settings` key — still format v1.
+// Restore merges by note id and never overwrites — re-importing an archive is a no-op;
+// settings merge the same way (nothing already here is dropped).
 import { dumpNotes, importNotes, type StoredNote } from "./notesDb";
+import { allProjects } from "./projects";
+import { applySettings, captureSettings, type SettingsSnapshot } from "./settingsSnapshot";
 import { readZip, writeZip, type ZipEntry } from "./zip";
 
 const MANIFEST = "manifest.json";
@@ -18,6 +23,8 @@ interface Manifest {
   version: 1;
   exportedAt: string;
   notes: ManifestNote[];
+  /** Added after the first release; absent in older archives. */
+  settings?: SettingsSnapshot;
 }
 
 export async function buildBackup(): Promise<{ blob: Blob; count: number; filename: string }> {
@@ -34,6 +41,7 @@ export async function buildBackup(): Promise<{ blob: Blob; count: number; filena
     version: 1,
     exportedAt: new Date().toISOString(),
     notes,
+    settings: captureSettings(allProjects(stored.map((n) => n.data.project))),
   };
   entries.unshift({ name: MANIFEST, data: new TextEncoder().encode(JSON.stringify(manifest)) });
   return {
@@ -58,5 +66,7 @@ export async function restoreBackup(file: File): Promise<{ added: number; skippe
     const { audioType, ...rest } = m;
     restored.push({ ...rest, audio: new Blob([audioBytes], { type: audioType }) });
   }
-  return importNotes(restored);
+  const result = await importNotes(restored);
+  if (manifest.settings) applySettings(manifest.settings);
+  return result;
 }
