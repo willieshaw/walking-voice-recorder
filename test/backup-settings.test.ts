@@ -1,20 +1,13 @@
-import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildBackup, restoreBackup } from "../app/lib/backup.js";
 import { getDictionary, setDictionary } from "../app/lib/dictionary.js";
 import { setFolderOrder, storedFolders } from "../app/lib/folders.js";
 import { rememberProject, allProjects } from "../app/lib/projects.js";
-import { saveNote } from "../app/lib/notesDb.js";
+import { setFsPort } from "../app/lib/fsPort.js";
+import { _resetForTests, saveNote } from "../app/lib/notesDb.js";
 import { readZip } from "../app/lib/zip.js";
 import type { Note } from "../src/core/types.js";
-
-function wipeDb(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.deleteDatabase("wvr");
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-  });
-}
+import { MemoryFs } from "./helpers/memoryFs.js";
 
 function stubStorage() {
   const store = new Map<string, string>();
@@ -30,8 +23,9 @@ function stubStorage() {
 }
 
 describe("backup archive carries the device settings (manifest v1, optional `settings`)", () => {
-  beforeEach(async () => {
-    await wipeDb();
+  beforeEach(() => {
+    setFsPort(new MemoryFs());
+    _resetForTests();
     stubStorage();
   });
   afterEach(() => vi.unstubAllGlobals());
@@ -66,7 +60,8 @@ describe("backup archive carries the device settings (manifest v1, optional `set
     const { blob } = await buildBackup();
 
     // A fresh device that already has one term of its own.
-    await wipeDb();
+    setFsPort(new MemoryFs());
+    _resetForTests();
     stubStorage();
     setDictionary(["Saltmarsh"]);
     const res = await restoreBackup(new File([blob], "b.zip"));
@@ -90,7 +85,8 @@ describe("backup archive carries the device settings (manifest v1, optional `set
     };
     const older = new Blob([writeZip(entries)]);
 
-    await wipeDb();
+    setFsPort(new MemoryFs());
+    _resetForTests();
     stubStorage();
     setDictionary(["Saltmarsh"]);
     await restoreBackup(new File([older], "old.zip"));
