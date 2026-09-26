@@ -133,6 +133,40 @@ export interface ArtifactMeta {
   inputVersions: Partial<Record<ArtifactKind, number>>;
 }
 
+/** Provenance supplied by the standalone recorder. The recording UUID is also the note id,
+ *  allowing an iPhone proxy and a later Mac master to converge on the same note. */
+export interface DeviceRecordingMetadata {
+  recordingId: string;
+  deviceId: string;
+  startedAtUtc: string;
+  endedAtUtc: string;
+  timezone: string;
+  segments: {
+    id: string;
+    order: number;
+    durationSec: Seconds;
+    sha256: string;
+  }[];
+  master: {
+    format: "wav";
+    sampleRateHz: 48_000;
+    bitDepth: 24;
+    channels: 2;
+    sha256: string;
+    acknowledgedAt?: string;
+  };
+  proxy: {
+    format: "aac-lc";
+    sampleRateHz: 24_000;
+    bitrateKbps: 32;
+    channels: 1;
+    sha256: string;
+    acknowledgedAt?: string;
+  };
+  audioProcessingVersion: number;
+  firmwareVersion: string;
+}
+
 /** A note as the browser sees it: an id, the audio URL, and whatever artifacts exist. */
 export interface Note {
   id: string;
@@ -140,6 +174,8 @@ export interface Note {
   audioUrl: string;
   durationSec: Seconds;
   createdAt?: number;
+  /** Present when this note originated on the standalone recorder. */
+  deviceRecording?: DeviceRecordingMetadata;
   /** The label facet: user-applied organization (no LLM). Search, Folders, and Pinned
    *  are all filtered views over these same fields — not separate subsystems. */
   tags?: string[];
