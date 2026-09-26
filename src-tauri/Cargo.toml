@@ -1,8 +1,8 @@
 [package]
 name = "app"
-version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+version = "0.1.0" # not the shipped version: tauri.conf.json reads package.json
+description = "Thoughts: local-first voice notes"
+authors = ["Willie Shaw"]
 license = ""
 repository = ""
 edition = "2021"

@@ -47,6 +47,20 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![keychain_get, keychain_set])
+        // Keep the window on the app's own origin. External links go through the opener
+        // plugin; a main-frame navigation elsewhere (e.g. right-click → Open Link) is denied.
+        // tauri::Builder has no on_navigation hook, so it rides on a tiny inline plugin,
+        // whose hook Tauri runs for every webview.
+        .plugin(
+            tauri::plugin::Builder::<tauri::Wry>::new("navigation-guard")
+                .on_navigation(|_webview, url| {
+                    let host = url.host_str().unwrap_or("");
+                    url.scheme() == "tauri"
+                        || host == "tauri.localhost"
+                        || (cfg!(debug_assertions) && host == "localhost")
+                })
+                .build(),
+        )
         .run(tauri::generate_context!())
         .expect("error while running Thoughts");
 }
