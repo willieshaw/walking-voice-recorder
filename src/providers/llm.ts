@@ -1,7 +1,7 @@
 // Node-only. The structuring LLM behind a small interface so processors don't know the
 // vendor and tests can swap in a fake. Default: OpenAI (gpt-4o-mini) with structured
-// outputs (strict JSON schema) — reuses the same isomorphic call used by the browser's
-// /api/structure proxy, so Node and browser produce identical requests.
+// outputs (strict JSON schema) — reuses the same isomorphic call used by the desktop
+// app, which calls it through Tauri's fetch, so Node and the app produce identical requests.
 import { openaiStructure } from "../server/openaiStructure.js";
 
 export interface LlmJsonRequest {

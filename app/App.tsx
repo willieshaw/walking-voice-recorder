@@ -5,7 +5,6 @@ import { formatTime } from "./components/AudioPlayer";
 import { DropZone } from "./components/DropZone";
 import { EditableTitle } from "./components/EditableTitle";
 import { LibraryFeed, formatNoteDate } from "./shell/LibraryFeed";
-import { ExportBanner } from "./shell/ExportBanner";
 import { StickyPlayer } from "./shell/StickyPlayer";
 import { ReadingPane } from "./shell/ReadingPane";
 import { DigestCard } from "./shell/DigestCard";
@@ -72,7 +71,6 @@ import {
   setActiveProjectStored,
 } from "./lib/projects";
 import { hasKeys } from "./lib/keys";
-import { restoreBackup } from "./lib/backup";
 import {
   buildDirectives,
   buildKeyMoments,
@@ -272,21 +270,7 @@ export default function App() {
     // Drop trashed notes whose 30-day window lapsed, then load the rest.
     void purgeExpired()
       .then(listNotes)
-      .then(async (s) => {
-        // DEV: the preview browser's storage partition occasionally rotates, wiping
-        // IndexedDB. If we boot empty and an on-disk seed archive exists, restore it —
-        // so test notes survive storage wipes without regenerating them.
-        if (import.meta.env.DEV && s.length === 0) {
-          try {
-            const res = await fetch("/api/dev-seed");
-            if (res.ok) {
-              await restoreBackup(new File([await res.blob()], "seed.zip"));
-              s = await listNotes();
-            }
-          } catch {
-            // no seed saved yet — a normal empty start
-          }
-        }
+      .then((s) => {
         setSummaries(s);
         setNotesLoaded(true);
       });
@@ -1320,7 +1304,6 @@ export default function App() {
             <LibraryFeed
               summaries={filterFolder ? live.filter((s) => s.folder === filterFolder) : live}
               title={filterFolder ?? "All notes"}
-              banner={notesLoaded ? <ExportBanner notes={summaries} /> : null}
               onOpen={openMemo}
             />
           )

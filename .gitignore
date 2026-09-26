@@ -7,12 +7,8 @@ dist
 app/public/notes/*
 !app/public/notes/.gitkeep
 
-# Wrangler / Cloudflare
-.wrangler
-
 # macOS
 .DS_Store
-dev-fixtures/
 
 # Generated CAD/render output and scratch (hardware prototyping)
 cad/output/

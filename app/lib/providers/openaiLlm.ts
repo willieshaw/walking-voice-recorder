@@ -33,7 +33,7 @@ async function callStructure<T>(req: LlmRequest, paragraphs: Chunk[]): Promise<T
       schemaName: req.schemaName,
       apiKey: openai,
     },
-    tauriFetch as typeof fetch,
+    tauriFetch,
   );
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as {

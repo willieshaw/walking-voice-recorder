@@ -1,5 +1,5 @@
 // Node-only. Minimal .env loader (no dependency): KEY=VALUE lines, # comments, ignores
-// surrounding quotes. Shared by the CLI and the dev-server upload endpoint.
+// surrounding quotes. Used by the Node CLI.
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

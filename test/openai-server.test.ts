@@ -36,4 +36,16 @@ describe("openaiTranscribe / openaiStructure accept an injected fetch", () => {
     expect(body.response_format.json_schema.strict).toBe(true);
     expect(body.messages[0]).toEqual({ role: "system", content: "s" });
   });
+
+  it("structure passes an OpenAI error through with its status and body", async () => {
+    const f = (async () =>
+      new Response('{"error":{"message":"bad key"}}', { status: 401 })) as typeof fetch;
+    const res = await openaiStructure(
+      { system: "s", prompt: "p", schema: { type: "object" }, schemaName: "r", apiKey: "sk-bad" },
+      f,
+    );
+    expect(res.ok).toBe(false);
+    expect(res.status).toBe(401);
+    expect((await res.json()).error.message).toBe("bad key");
+  });
 });

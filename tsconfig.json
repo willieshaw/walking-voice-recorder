@@ -22,5 +22,5 @@
       "@engine/*": ["src/*"]
     }
   },
-  "include": ["src", "app", "functions", "vite.config.ts"]
+  "include": ["src", "app", "vite.config.ts"]
 }

@@ -29,7 +29,7 @@ export async function transcribe(file: File): Promise<Transcript> {
     file.name,
     openai,
     sttPrompt || undefined,
-    tauriFetch as typeof fetch,
+    tauriFetch,
   );
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as {
