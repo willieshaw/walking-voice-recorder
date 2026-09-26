@@ -73,11 +73,21 @@ the environment or a repo-root `.env` file.
 
 ```bash
 npm run dev      # Tauri window + Vite dev server
-npm run build    # unsigned Thoughts.app in src-tauri/target/release/bundle/macos/
+CI=true npm run build   # unsigned Thoughts.app + DMG in src-tauri/target/release/bundle/
 ```
 
-The build is unsigned: right-click → Open the first time on a new machine. Signing and
-notarization are tracked separately.
+A local build is unsigned: right-click → Open the first time on a new machine. Signed,
+notarized builds come from the Release workflow (below).
+
+## Releasing a beta
+
+1. On a branch off `dev`: `npm version 0.2.0-beta.N --no-git-tag-version`, commit, PR into `dev`, merge, promote `dev` to `main`.
+2. Tag the promoted commit on `main`: `git tag v0.2.0-beta.N <sha> && git push origin v0.2.0-beta.N`.
+3. The Release workflow builds a universal, signed, notarized DMG and publishes the GitHub release with the updater manifest. Running apps offer the update on next launch.
+
+Betas are published as ordinary releases (not "pre-release") because the updater endpoint uses the repository's `latest` release.
+
+Local `npm run build` needs `CI=true npm run build` for the DMG step (the bundler otherwise drives Finder via AppleScript, which needs automation permission).
 
 ## Architecture
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { getKeys, setKeys } from "../lib/keys";
 import "./settings-keys.css";
 
@@ -45,7 +46,13 @@ export function SettingsKeys({ onSaved }: { onSaved: () => void }) {
           placeholder="sk-..."
           autoComplete="off"
         />
-        <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">
+        <a
+          href="https://platform.openai.com/api-keys"
+          onClick={(e) => {
+            e.preventDefault(); // a plain target=_blank does nothing inside the Tauri window
+            void openUrl("https://platform.openai.com/api-keys");
+          }}
+        >
           Get an OpenAI key →
         </a>
       </label>

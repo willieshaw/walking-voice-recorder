@@ -6,6 +6,8 @@
   "permissions": [
     "core:default",
     "dialog:default",
+    "updater:default",
+    "process:default",
     {
       "identifier": "http:default",
       "allow": [{ "url": "https://api.openai.com/*" }]
@@ -26,6 +28,10 @@
         { "path": "$APPDATA" },
         { "path": "$APPDATA/**" }
       ]
+    },
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://platform.openai.com/*" }]
     }
   ]
 }

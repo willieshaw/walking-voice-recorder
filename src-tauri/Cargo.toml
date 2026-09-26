@@ -1,10 +1,10 @@
 [package]
 name = "app"
-version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
-license = ""
-repository = ""
+version = "0.1.0" # not the shipped version: tauri.conf.json reads package.json
+description = "Thoughts: local-first voice notes"
+authors = ["Willie Shaw"]
+license = "UNLICENSED"
+repository = "https://github.com/willieshaw/walking-voice-recorder"
 edition = "2021"
 rust-version = "1.77.2"
 
@@ -26,4 +26,7 @@ tauri-plugin-log = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-http = "~2.6" # npm @tauri-apps/plugin-http is 2.6.x; tauri build requires matching minors
 tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 keyring = { version = "3", features = ["apple-native"] }

@@ -25,7 +25,7 @@
 | `test/no-external-fonts.test.ts` (create) | Pins that no entry page references Google Fonts. |
 | `app/components/SettingsKeys.tsx` (modify) | OpenAI link via the opener plugin. |
 | `src-tauri/Cargo.toml`, `src-tauri/src/lib.rs`, `src-tauri/capabilities/default.json` (modify) | Register opener/updater/process plugins and permissions; metadata. |
-| `src-tauri/tauri.conf.json` (modify) | version → package.json, targets app+dmg, updater artifacts, CSP/devCsp, updater plugin config, minimum macOS. |
+| `src-tauri/tauri.conf.json` (modify) | version → package.json, targets app+dmg, updater artifacts, CSP, updater plugin config, minimum macOS. |
 | `app/lib/updater.ts` (create) | `checkForUpdate`, `installUpdate`, pure `updateStripState` reducer. |
 | `test/updater.test.ts` (create) | Reducer + wrappers with the plugin mocked. |
 | `app/shell/UpdateStrip.tsx`, `app/shell/update-strip.css` (create) | The strip UI. |
@@ -120,11 +120,11 @@ Run: `npx vitest run test/no-external-fonts.test.ts` → 4 failures (three pages
 
 ```bash
 mkdir -p app/public/fonts
-curl -sSL -o app/public/fonts/Newsreader-Variable.woff2 "https://fonts.gstatic.com/s/newsreader/v26/cY9AfjOCX1hbuyalUrK439HyjIJFJpeBZQ.woff2"
-curl -sSL -o app/public/fonts/Newsreader-Italic-Variable.woff2 "https://fonts.gstatic.com/s/newsreader/v26/cY9AfjOCX1hbuyalUrK4397yjIJFJpc.woff2"
+curl -sSL -o app/public/fonts/Newsreader-Variable.woff2 "https://fonts.gstatic.com/s/newsreader/v26/cY9AfjOCX1hbuyalUrK4397yjIJFJpc.woff2"
+curl -sSL -o app/public/fonts/Newsreader-Italic-Variable.woff2 "https://fonts.gstatic.com/s/newsreader/v26/cY9CfjOCX1hbuyalUrK439vCjohCBJWxZA.woff2"
 file app/public/fonts/*.woff2 && ls -la app/public/fonts
 ```
-Expected: both files reported as `Web Open Font Format (Version 2)`, tens of KB each. If a URL 404s (Google rotates `v26`), fetch the current ones: `curl -s -A "Mozilla/5.0 (Macintosh) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15" "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap"` and take the `src: url(...)` of the `/* latin */` block for `font-style: normal` and `font-style: italic`.
+Expected: both files reported as `Web Open Font Format (Version 2)`, roughly 130–150 KB each. If a URL 404s (Google rotates `v26`), fetch the current ones: `curl -s -A "Mozilla/5.0 (Macintosh) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15" "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap"` and take the `src: url(...)` of the `/* latin */` block for `font-style: normal` and `font-style: italic`.
 
 - [ ] **Step 5: Declare the faces** — create `app/fonts.css`:
 
@@ -253,8 +253,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src ipc: http://ipc.localhost",
-      "devCsp": "default-src 'self' http://localhost:5173; script-src 'self' http://localhost:5173; style-src 'self' 'unsafe-inline' http://localhost:5173; font-src 'self' http://localhost:5173; img-src 'self' data: blob:; media-src 'self' blob:; connect-src ipc: http://ipc.localhost http://localhost:5173 ws://localhost:5173"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src ipc: http://ipc.localhost blob:; base-uri 'self'; object-src 'none'"
     }
   },
   "bundle": {
@@ -289,7 +288,7 @@ git commit -m "Desktop: DMG target, package.json as the version source, release 
 The bundle now produces a DMG alongside the .app and emits updater artifacts; the
 app version comes from package.json so one bump covers everything; and the webview
 is locked to itself by a CSP (blob audio and Tauri IPC allowed, OpenAI reached only
-through the http plugin over IPC). devCsp permits the Vite dev server and its socket.
+through the http plugin over IPC).
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
@@ -778,7 +777,7 @@ jobs:
           releaseBody: "Download the DMG, drag Thoughts to Applications. Existing installs update themselves."
           releaseDraft: false
           prerelease: false
-          includeUpdaterJson: true
+          uploadUpdaterJson: true
           args: --target universal-apple-darwin
 ```
 Confirm input names against `https://github.com/tauri-apps/tauri-action/blob/action-v1.0.0/action.yml` (`gh api repos/tauri-apps/tauri-action/contents/action.yml?ref=action-v1.0.0 --jq .content | base64 -d | grep -E "^  [a-zA-Z]+:"`). Adjust if any differs and report.
@@ -859,7 +858,7 @@ Expected: green. Typical first-run failures and fixes: certificate import (check
 ```bash
 gh release view v0.2.0-beta.1 --json assets -q '.assets[].name'
 ```
-Expected: `Thoughts_0.2.0-beta.1_universal.dmg`, `Thoughts.app.tar.gz`, `Thoughts.app.tar.gz.sig`, `latest.json`. `curl -sL https://github.com/willieshaw/walking-voice-recorder/releases/latest/download/latest.json` shows `"version": "0.2.0-beta.1"` and a `darwin-universal` (or `darwin-aarch64`/`darwin-x86_64`) platform entry with a `url` and `signature`.
+Expected: `Thoughts_0.2.0-beta.1_universal.dmg`, `Thoughts_0.2.0-beta.1_universal.app.tar.gz`, `Thoughts_0.2.0-beta.1_universal.app.tar.gz.sig`, `latest.json`. `curl -sL https://github.com/willieshaw/walking-voice-recorder/releases/latest/download/latest.json` shows `"version": "0.2.0-beta.1"` and a `darwin-universal` (or `darwin-aarch64`/`darwin-x86_64`) platform entry with a `url` and `signature`.
 
 - [ ] **Step 5: Install like a tester (Willie, on this Mac)** — quit any running Thoughts; download the DMG from the release page in Safari; open it; drag Thoughts to Applications; eject; open from Applications. Expected: no Gatekeeper dialog. Then:
 

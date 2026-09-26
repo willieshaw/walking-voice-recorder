@@ -20,6 +20,7 @@ without warnings and that updates itself when a new build ships.
 | Release flag | Betas are published as **ordinary releases** (not "pre-release") with beta version numbers, because GitHub's `releases/latest` pointer, which the updater endpoint uses, skips pre-releases. |
 | Version source | **`package.json` is the single version**; `tauri.conf.json` reads it (`"version": "../package.json"`). `src-tauri/Cargo.toml` keeps a static `0.1.0` and is not the shipped version. |
 | Icon | Default Tauri icon unless Willie supplies 1024-px artwork; then `tauri icon` regenerates the set. |
+| Repository visibility | **Public.** The updater endpoint and release downloads are plain GitHub URLs, which a private repo would put behind a login. Decided 2026-09-26. |
 
 Facts the design relies on: the app does not capture audio itself (no microphone entitlement or
 usage description needed); the only external URLs are Google Fonts (to be removed) and the
@@ -67,9 +68,11 @@ None of these values ever enter the repo, the plan, or chat.
   `https://platform.openai.com/*`.
 - **CSP** (release): `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
   font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src ipc:
-  http://ipc.localhost`. Tauri adds its own script hashes. `devCsp` additionally allows the Vite
-  dev server and its websocket. OpenAI is not in `connect-src` on purpose: those requests go
-  through the http plugin over IPC, not the webview's fetch.
+  http://ipc.localhost blob:; base-uri 'self'; object-src 'none'`. Tauri adds its own script
+  hashes. `connect-src` lists `blob:` because the waveform code `fetch()`es blob URLs (WebKit
+  doesn't enforce CSP on that today, but the policy should state it). OpenAI is not in
+  `connect-src` on purpose: those requests go through the http plugin over IPC, not the webview's
+  fetch.
 - Signing: hardened runtime (the bundler's default when an identity is set); no custom
   entitlements file.
 
@@ -94,9 +97,9 @@ None of these values ever enter the repo, the plan, or chat.
 - Trigger: `push` of tags matching `v*`.
 - Runner: `macos-latest`. Steps: checkout; Node 22 + `npm ci`; Rust stable with
   `aarch64-apple-darwin` and `x86_64-apple-darwin`; `npm run typecheck && npm test`;
-  `tauri-apps/tauri-action@v1` with `args: --target universal-apple-darwin`,
+  `tauri-apps/tauri-action@action-v1.0.0` (pinned tag) with `args: --target universal-apple-darwin`,
   `tagName: ${{ github.ref_name }}`, `releaseName: "Thoughts ${{ github.ref_name }}"`,
-  `releaseDraft: false`, `prerelease: false`, `includeUpdaterJson: true`, and the eight secrets
+  `releaseDraft: false`, `prerelease: false`, `uploadUpdaterJson: true`, and the eight secrets
   as `env`. The action signs, notarizes, creates the release, and attaches the DMG, the
   `.app.tar.gz` updater bundle with its `.sig`, and `latest.json`.
 - `GITHUB_TOKEN` needs `contents: write` (declared in the workflow `permissions`).
