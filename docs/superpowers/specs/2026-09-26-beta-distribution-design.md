@@ -97,9 +97,9 @@ None of these values ever enter the repo, the plan, or chat.
 - Trigger: `push` of tags matching `v*`.
 - Runner: `macos-latest`. Steps: checkout; Node 22 + `npm ci`; Rust stable with
   `aarch64-apple-darwin` and `x86_64-apple-darwin`; `npm run typecheck && npm test`;
-  `tauri-apps/tauri-action@v1` with `args: --target universal-apple-darwin`,
+  `tauri-apps/tauri-action@action-v1.0.0` (pinned tag) with `args: --target universal-apple-darwin`,
   `tagName: ${{ github.ref_name }}`, `releaseName: "Thoughts ${{ github.ref_name }}"`,
-  `releaseDraft: false`, `prerelease: false`, `includeUpdaterJson: true`, and the eight secrets
+  `releaseDraft: false`, `prerelease: false`, `uploadUpdaterJson: true`, and the eight secrets
   as `env`. The action signs, notarizes, creates the release, and attaches the DMG, the
   `.app.tar.gz` updater bundle with its `.sig`, and `latest.json`.
 - `GITHUB_TOKEN` needs `contents: write` (declared in the workflow `permissions`).

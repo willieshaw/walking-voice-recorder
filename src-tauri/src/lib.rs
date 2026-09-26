@@ -1,6 +1,6 @@
-// The Rust side of Thoughts is deliberately tiny: the three official plugins the
-// frontend uses (fs, http, dialog) and two commands that keep the OpenAI key in the
-// macOS Keychain instead of web storage.
+// The Rust side of Thoughts is deliberately tiny: the official plugins the frontend uses
+// (fs, http, dialog, opener, updater, process), a one-rule navigation guard, and two
+// commands that keep the OpenAI key in the macOS Keychain instead of web storage.
 
 const KEYCHAIN_SERVICE: &str = "Thoughts";
 

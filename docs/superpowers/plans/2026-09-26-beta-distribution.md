@@ -25,7 +25,7 @@
 | `test/no-external-fonts.test.ts` (create) | Pins that no entry page references Google Fonts. |
 | `app/components/SettingsKeys.tsx` (modify) | OpenAI link via the opener plugin. |
 | `src-tauri/Cargo.toml`, `src-tauri/src/lib.rs`, `src-tauri/capabilities/default.json` (modify) | Register opener/updater/process plugins and permissions; metadata. |
-| `src-tauri/tauri.conf.json` (modify) | version → package.json, targets app+dmg, updater artifacts, CSP/devCsp, updater plugin config, minimum macOS. |
+| `src-tauri/tauri.conf.json` (modify) | version → package.json, targets app+dmg, updater artifacts, CSP, updater plugin config, minimum macOS. |
 | `app/lib/updater.ts` (create) | `checkForUpdate`, `installUpdate`, pure `updateStripState` reducer. |
 | `test/updater.test.ts` (create) | Reducer + wrappers with the plugin mocked. |
 | `app/shell/UpdateStrip.tsx`, `app/shell/update-strip.css` (create) | The strip UI. |
@@ -288,7 +288,7 @@ git commit -m "Desktop: DMG target, package.json as the version source, release 
 The bundle now produces a DMG alongside the .app and emits updater artifacts; the
 app version comes from package.json so one bump covers everything; and the webview
 is locked to itself by a CSP (blob audio and Tauri IPC allowed, OpenAI reached only
-through the http plugin over IPC). devCsp permits the Vite dev server and its socket.
+through the http plugin over IPC).
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```

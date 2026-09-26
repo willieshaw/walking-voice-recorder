@@ -3,8 +3,8 @@ name = "app"
 version = "0.1.0" # not the shipped version: tauri.conf.json reads package.json
 description = "Thoughts: local-first voice notes"
 authors = ["Willie Shaw"]
-license = ""
-repository = ""
+license = "UNLICENSED"
+repository = "https://github.com/willieshaw/walking-voice-recorder"
 edition = "2021"
 rust-version = "1.77.2"
 
