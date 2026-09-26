@@ -7,6 +7,8 @@ export interface NoteSummary {
   title: string;
   durationSec: number;
   createdAt: number;
+  /** Last write to this note (any field). Legacy records report createdAt. */
+  updatedAt: number;
   /** Feed preview: the AI summary (default variant), falling back to the transcript's
    *  opening for notes that don't have one yet. */
   snippet: string;
@@ -26,6 +28,8 @@ export interface StoredNote {
   title: string;
   durationSec: number;
   createdAt: number;
+  /** Stamped on every write. Optional because archives from before this field lack it. */
+  updatedAt?: number;
   data: Omit<Note, "audioUrl">;
   audio: Blob;
 }
@@ -57,11 +61,13 @@ function tx<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBReque
 
 export async function saveNote(note: Note, audio: Blob): Promise<void> {
   const { audioUrl: _drop, ...data } = note;
+  const now = Date.now();
   const stored: StoredNote = {
     id: note.id,
     title: note.title,
     durationSec: note.durationSec,
-    createdAt: Date.now(),
+    createdAt: now,
+    updatedAt: now,
     data,
     audio,
   };
@@ -76,11 +82,12 @@ async function allByRecency(): Promise<StoredNote[]> {
 
 export async function listNotes(): Promise<NoteSummary[]> {
   const all = await allByRecency();
-  return all.map(({ id, title, durationSec, createdAt, data }) => ({
+  return all.map(({ id, title, durationSec, createdAt, updatedAt, data }) => ({
       id,
       title,
       durationSec,
       createdAt,
+      updatedAt: updatedAt ?? createdAt,
       snippet: (data.summary ?? data.transcript?.text ?? "")
         .replace(/\s+/g, " ")
         .trim()
@@ -147,6 +154,7 @@ function mutateNote(id: string, mutate: (stored: StoredNote) => void): Promise<v
           const stored = get.result as StoredNote | undefined;
           if (!stored) return resolve();
           mutate(stored);
+          stored.updatedAt = Date.now();
           const put = store.put(stored);
           put.onsuccess = () => resolve();
           put.onerror = () => reject(put.error);
