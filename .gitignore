@@ -13,3 +13,12 @@ app/public/notes/*
 # macOS
 .DS_Store
 dev-fixtures/
+
+# Generated CAD/render output and scratch (hardware prototyping)
+cad/output/
+output/
+tmp/
+__pycache__/
+*.pyc
+# Third-party reference docs (kept locally, not in git)
+*.docx

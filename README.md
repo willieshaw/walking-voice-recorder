@@ -1,86 +1,140 @@
 # Thoughts
 
-A tool for turning a brainstorming-walk recording into clean, structured notes. Drop an
-audio file, get a timestamped transcript and a **Layers** view that dials from raw ramble
-to tight outline. It runs **entirely in your browser** using **your own OpenAI key** — no
-backend, nothing stored on a server.
+Thoughts turns voice recordings into a local, searchable library of structured notes.
+Drop in an audio file and it produces a timestamped transcript, a lightly cleaned reading,
+a short digest, key moments, and extracted to-dos. Playback stays synchronized with the
+text so you can jump to any paragraph or moment in the recording.
 
-## How it works (bring-your-own-key)
+The app is browser-first and bring-your-own-key. Notes and audio are stored on the device;
+there is no account or hosted note database.
 
-- You paste your own **OpenAI** key once; it's saved only in your browser (`localStorage`).
-- Audio is transcribed and structured with your key; notes are saved locally in your
-  browser (**IndexedDB**). Nothing is uploaded to a server we run.
-- OpenAI doesn't allow calling its API directly from a browser, so both steps pass through
-  tiny **stateless pass-throughs** (`/api/transcribe`, `/api/structure` — Cloudflare Pages
-  Functions) that forward each request to OpenAI with your key and store/log nothing.
+## What you can do
 
-## Get your key
+- Record elsewhere and import an audio file through the drop zone.
+- Switch between the raw transcript and a lightly cleaned reading.
+- Play a recording while following the active paragraph, or seek from timestamps and key
+  moments.
+- Edit transcript and cleaned paragraphs in place, with undo/redo and per-paragraph revert.
+- Review the generated digest and mark extracted to-dos complete.
+- Search full transcripts and organize notes with projects, folders, tags, and pins.
+- Combine several notes into one continuous reading and playback timeline without changing
+  the source notes.
+- Re-run analyses when processor prompts are updated, without transcribing the audio again.
+- Soft-delete notes to a 30-day trash and back up or restore the complete local library as
+  a ZIP archive.
+- Maintain a personal dictionary that biases future transcriptions toward names and terms
+  you use often.
 
-1. **OpenAI** — https://platform.openai.com/api-keys (add a few dollars of billing).
-2. Set a small monthly spend limit on the account so there are no surprises.
+## How processing and storage work
 
-## Use it
+- Your OpenAI API key is saved in browser `localStorage`.
+- Audio, transcripts, analyses, labels, and other note data are stored in IndexedDB.
+- The browser sends transcription and structuring requests to `/api/transcribe` and
+  `/api/structure`. A small stateless Cloudflare Worker forwards those requests to OpenAI
+  because the OpenAI endpoints cannot be called directly from the browser.
+- Each request carries your API key. The application Worker does not persist request bodies
+  or keys, and there is no application database on the server.
+- The default models are `whisper-1` for transcription and `gpt-4o-mini` for structured
+  analyses.
 
-Open the app, click the ⚙ (or the keys panel), paste your key, then drag a recording onto
-the drop zone. After a minute or two you'll see the note. Copy it from **Transcript**,
-follow along in **Listen**, jump between key moments on the **Scrubber** waveform, or
-explore the recurring ideas in **Concepts**. **Export** downloads a note's JSON. Notes
-made before an update show an **Upgrade note** button that adds the newer analyses using
-the stored transcript (no re-transcription).
+Because the library is local to one browser profile, use the backup feature in Settings if
+the notes matter. Sign-in and cloud sync are not implemented.
+
+## Get an OpenAI key
+
+1. Create a key at <https://platform.openai.com/api-keys>.
+2. Add billing and set a small monthly usage limit.
+3. Open Thoughts, go to Settings, and paste the key.
 
 ## Local development
 
+Requirements: a current Node.js installation and npm.
+
 ```bash
 npm install
-npm run dev        # opens the app; the dev server also provides /api/transcribe and
-                    # /api/structure locally
+npm run dev
 ```
 
-For local dev you can drop `OPENAI_API_KEY` into a `.env` file and the dev proxies will use
-it if the browser didn't send one — handy for testing without pasting a key. (In production
-the Pages Functions always use the key sent by the browser.)
+The selected single-LED hardware prototype is available at
+`http://localhost:5173/hardware-lab.html`. The preserved four-configuration portfolio study
+is available separately at `http://localhost:5173/hardware-study.html`. Neither page is
+linked from or dependent on the Thoughts application, API keys, IndexedDB library, or
+processing endpoints.
+
+[`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) is the canonical specification for the recorder hardware,
+interface, audio pipeline, transfers, security, and acceptance criteria.
+
+The Vite development server opens the app and provides local versions of both `/api/*`
+routes. You can optionally put this in a repo-root `.env` file:
+
+```dotenv
+OPENAI_API_KEY=your-key
+```
+
+In development, the proxy uses that value when the browser does not send a key. Production
+always requires the per-user key sent by the browser.
+
+Other commands:
 
 ```bash
-npm run build      # static build → dist/  (+ functions/ deploys as Pages Functions)
+npm run build      # production app -> dist/
 npm run preview    # preview the production build
-npm run typecheck  # tsc --noEmit
-npm test           # engine tests (no API calls)
-npm run process -- <audio-file>   # optional Node CLI path (writes to app/public/notes)
+npm run typecheck  # TypeScript check without emitting files
+npm test           # Vitest engine and browser-logic tests
+npm run process -- <audio-file>   # optional Node CLI pipeline
 ```
 
-## Ship it (free) + version control
+The CLI path writes its note and JSON artifacts to `app/public/notes/`. It uses the same
+core types, processors, prompts, and assembly functions as the browser where practical,
+but it is separate from the IndexedDB library used by the main app.
 
-Deploys to **Cloudflare Workers** (static assets + a tiny Worker for the two `/api/*`
-routes), configured by `wrangler.jsonc` + `worker/index.ts`.
+## Deployment
 
-1. **Version control:** push to a **private GitHub repo** (`git init`, commit, push).
-2. **Host on Cloudflare** (free): Workers & Pages → connect the GitHub repo. Cloudflare
-   detects Vite and reads `wrangler.jsonc`:
-   - Build command: `npm run build` (outputs `dist/`).
-   - Deploy: `npx wrangler deploy` (serves `dist/` via the `ASSETS` binding and routes
-     `/api/transcribe` + `/api/structure` through `worker/index.ts`).
-   - No environment variables needed on the host — the key is per-user, entered in the app.
-3. **Every `git push` auto-deploys** the same URL. Testers just refresh to get updates.
-4. **Feedback:** link a free form (Tally/Google Form) and use the in-app **Export** button
-   to collect a tester's transcript + layers.
+Production uses Cloudflare Workers with Static Assets, configured by `wrangler.jsonc` and
+`worker/index.ts`.
 
-Local deploy (optional): `npx wrangler deploy` after `npm run build` (needs `wrangler login`).
+```bash
+npm run build
+npx wrangler deploy
+```
+
+The build produces `dist/`. Cloudflare serves that directory through the `ASSETS` binding,
+uses an SPA fallback for client navigation, and sends the two `/api/*` routes through the
+Worker. No hosted OpenAI environment variable is required because each user supplies a key.
+
+For continuous deployment, connect the repository to Cloudflare and configure:
+
+- Build command: `npm run build`
+- Deploy command: `npx wrangler deploy`
 
 ## Architecture
 
-- `src/core/` — isomorphic types + the shared timeline/focus store.
-- `src/processors/` — the pipeline as pure/reusable logic: `transcribe` (transcript
-  assembly) and `layers` (prompt/schema + `assembleLayers`). Shared by the Node CLI and the
-  browser.
-- `worker/index.ts` — the Cloudflare Worker: serves the static SPA and routes the two
-  stateless OpenAI pass-throughs, sharing `src/server/openai{Transcribe,Structure}.ts` with
-  the Vite dev middleware (so dev and prod behave identically).
-- `app/lib/providers/` — browser providers: `openaiStt` and `openaiLlm`, both calling the
-  proxies above (OpenAI doesn't allow direct browser calls to either endpoint).
-  `app/lib/processInBrowser.ts` orchestrates; `app/lib/notesDb.ts` stores notes in
-  IndexedDB.
-- `app/experiences/` — swappable views (Transcript, Listen, Scrubber, Concepts, Layers),
-  toggled in `app/config/flags.ts`.
+- `app/App.tsx` — application shell and top-level library, memo, settings, organization,
+  upgrade, combine, and undo/redo workflows.
+- `app/shell/` — the visible library and memo surfaces: feed, reading pane, player, digest,
+  search, projects, folders, menus, and settings.
+- `app/components/` — smaller reusable UI pieces such as the drop zone, title editor, and
+  audio players.
+- `app/lib/notesDb.ts` — local IndexedDB storage and note mutations.
+- `app/lib/processInBrowser.ts` — browser orchestration from audio file to complete note;
+  independent analyses run in parallel after transcription.
+- `app/lib/providers/` — browser adapters for the two Worker API routes.
+- `src/core/` — isomorphic note types plus timeline, annotation, and combined-note logic.
+  It also contains the pure standalone-recorder and transfer state machine used by the lab.
+- `src/processors/` — reusable transcript and analysis processors, prompts, schemas,
+  versioning, and artifact assembly.
+- `src/server/` — isomorphic OpenAI forwarding functions shared by development and
+  production.
+- `src/cli/` and `src/core/store.ts` — the optional filesystem-based Node pipeline.
+- `worker/index.ts` — Cloudflare Worker entry point for static assets and the OpenAI
+  pass-through routes.
+- `test/` — unit and pipeline tests for shared processing and browser-side utilities.
 
-Adding a new **view** = a folder in `app/experiences/` + a registry line. The Node CLI
-(`npm run process`) still works against the filesystem for your own use.
+The shared timeline is the main integration contract: transcript chunks, key moments, and
+to-dos carry timestamps, while `src/core/focus.ts` synchronizes playback and reading UI.
+Processor versions are recorded on notes so prompt changes can make older analyses eligible
+for an in-place upgrade.
+
+The Recorder lab is a functional browser prototype of the product contract. It does not
+claim to emulate microphone acoustics, encrypted flash, radio throughput, firmware timing,
+IP54 sealing, or drop performance; those requirements need dedicated hardware prototypes.
