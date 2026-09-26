@@ -789,7 +789,7 @@ export default function App() {
     setSummaries((prev) => prev.filter((s) => s.id !== id));
   }
 
-  /** Permanent delete of everything in the trash. */
+  /** Strip's "Restart to update": download, verify, install, relaunch; errors show inline. */
   async function handleInstallUpdate() {
     if (!update) return;
     setUpdatePhase({ phase: "downloading", received: 0, total: null });
@@ -801,11 +801,13 @@ export default function App() {
   }
   /** Settings' manual check: resolves a human-readable line for the card. */
   async function handleCheckForUpdates(): Promise<string> {
+    if (updatePhase.phase === "downloading") return "An update is already downloading.";
     const u = await checkForUpdate();
     setUpdate(u);
     setUpdatePhase({ phase: "idle" });
     return u ? `Thoughts ${u.version} is ready — see the library.` : "You're on the latest version.";
   }
+  /** Permanent delete of everything in the trash. */
   async function handleEmptyTrash() {
     const n = trashed.length;
     if (!window.confirm(`Permanently delete ${n} note${n === 1 ? "" : "s"}? This can’t be undone.`)) return;
