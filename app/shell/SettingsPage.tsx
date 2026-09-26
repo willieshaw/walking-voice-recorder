@@ -165,7 +165,8 @@ export function SettingsPage({
         <div className="sp-backup-main">
           <div className="sp-backup-title">Download library</div>
           <div className="sp-backup-sub">
-            One archive with every recording plus its transcript, analyses, and labels.
+            One archive with every recording plus its transcript, analyses, and labels, and your
+            dictionary, folders, and projects.
             Notes live only in this browser — keep a copy somewhere safe. Restoring merges
             by note and never overwrites what's already here.
           </div>

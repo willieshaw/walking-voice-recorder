@@ -10,7 +10,8 @@ const ACTIVE = "wvr.activeProject";
 
 export const DEFAULT_PROJECT = "Default";
 
-function storedProjects(): string[] {
+/** The registry alone (no Default, no note labels) — what a backup carries. */
+export function storedProjects(): string[] {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? "[]");
     return Array.isArray(raw) ? raw.filter((p): p is string => typeof p === "string") : [];
