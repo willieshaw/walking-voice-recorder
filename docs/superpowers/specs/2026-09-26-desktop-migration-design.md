@@ -73,9 +73,14 @@ releases page; it is updated when a download URL exists.
 The backup archive is the migration path. Its format is frozen as **version 1**:
 
 ```
-manifest.json      { format: "thoughts-backup", version: 1, exportedAt, notes: ManifestNote[] }
+manifest.json      { format: "thoughts-backup", version: 1, exportedAt, notes: ManifestNote[],
+                     settings?: { dictionary, projects, folders: { [project]: { folders, pinned, pinnedOrder } } } }
 audio/<noteId>     the recording, byte-for-byte
 ```
+
+`settings` (optional, added 2026-09-26) carries what lives only in localStorage: the personal
+dictionary, the project registry, and each project's folder registry with pins and Pinned
+order. Restore merges it (union, current order first). Archives without it restore notes only.
 
 `ManifestNote` is `StoredNote` minus `audio`, plus `audioType` (MIME). The desktop app must import
 a version-1 archive unchanged, and its own export keeps producing version 1. Adding optional
