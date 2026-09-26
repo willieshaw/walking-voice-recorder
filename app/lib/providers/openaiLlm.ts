@@ -1,6 +1,6 @@
-// Browser structuring calls. OpenAI blocks direct browser calls (confirmed by CORS
-// check), so these post to our stateless /api/structure pass-through — reusing the exact
-// same prompts, schemas, and assembly as the Node pipeline.
+// Desktop structuring calls: chat completions called directly through Tauri's fetch —
+// reusing the exact same prompts, schemas, and assembly as the Node pipeline.
+import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import type { Annotation, Chunk, FormattingLayers, KeyMoment, Transcript } from "@core/types";
 import { assembleLayers, layersLlmRequest } from "@engine/processors/layers/index";
 import type { LayersResult } from "@engine/processors/layers/prompt";
@@ -10,7 +10,8 @@ import { assembleSummary } from "@engine/processors/summary/index";
 import { summaryRequest, type SummaryResult } from "@engine/processors/summary/prompt";
 import { assembleDirectives, directivesLlmRequest } from "@engine/processors/directives/index";
 import type { DirectivesResult } from "@engine/processors/directives/prompt";
-import { getKeys, hasDevServerKey } from "../keys";
+import { openaiStructure } from "@engine/server/openaiStructure";
+import { getKeys } from "../keys";
 
 interface LlmRequest {
   system: string;
@@ -19,23 +20,21 @@ interface LlmRequest {
   buildPrompt: (paragraphs: Chunk[]) => string;
 }
 
-/** Run one structured-output call through the pass-through and parse the JSON result. */
+/** Run one structured-output call directly against OpenAI and parse the JSON result. */
 async function callStructure<T>(req: LlmRequest, paragraphs: Chunk[]): Promise<T> {
-  const { openai } = getKeys();
-  // Dev: the proxy fills the key from .env when the browser has none (see hasKeys); only
-  // block when neither exists. The empty header below then triggers that server fallback.
-  if (!openai && !hasDevServerKey()) throw new Error("Add your OpenAI key in Settings.");
+  const { openai } = await getKeys();
+  if (!openai) throw new Error("Add your OpenAI key in Settings.");
 
-  const res = await fetch("/api/structure", {
-    method: "POST",
-    headers: { "x-openai-key": openai, "content-type": "application/json" },
-    body: JSON.stringify({
+  const res = await openaiStructure(
+    {
       system: req.system,
       prompt: req.buildPrompt(paragraphs),
       schema: req.schema,
       schemaName: req.schemaName,
-    }),
-  });
+      apiKey: openai,
+    },
+    tauriFetch as typeof fetch,
+  );
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as {
       error?: { message?: string } | string;
