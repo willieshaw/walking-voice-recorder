@@ -48,6 +48,30 @@ export function updateStripState(
   }
 }
 
+export type RailState =
+  | { kind: "hidden" }
+  | { kind: "shown"; action: "install" | "expand"; label: string };
+
+/** The collapsed rail's single icon for the same state. A ready update installs in one click
+ *  (the label says it restarts); progress and errors need words, so those expand the sidebar
+ *  where the full prompt shows them. Pure. */
+export function updateRailState(strip: StripState): RailState {
+  switch (strip.kind) {
+    case "hidden":
+      return { kind: "hidden" };
+    case "available":
+      return { kind: "shown", action: "install", label: `Restart to update to Thoughts ${strip.version}` };
+    case "downloading":
+      return {
+        kind: "shown",
+        action: "expand",
+        label: `Downloading Thoughts ${strip.version}${strip.percent === null ? "…" : ` · ${strip.percent}%`}`,
+      };
+    case "error":
+      return { kind: "shown", action: "expand", label: `Update failed: ${strip.message}` };
+  }
+}
+
 /** Resolves null when the running version is current. Rejects on network/manifest errors. */
 export async function checkForUpdate(): Promise<AvailableUpdate | null> {
   const u = await check();

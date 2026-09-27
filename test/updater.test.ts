@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@tauri-apps/plugin-updater", () => ({ check: mocks.check }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: mocks.relaunch }));
 
-import { checkForUpdate, installUpdate, updateStripState } from "../app/lib/updater.js";
+import { checkForUpdate, installUpdate, updateRailState, updateStripState } from "../app/lib/updater.js";
 
 describe("updateStripState (pure)", () => {
   it("is hidden when there is no update or it was dismissed", () => {
@@ -45,6 +45,38 @@ describe("updateStripState (pure)", () => {
       kind: "error",
       version: "v",
       message: "boom",
+    });
+  });
+});
+
+describe("updateRailState (pure): the collapsed rail's one-icon indicator", () => {
+  it("is hidden whenever the strip is", () => {
+    expect(updateRailState({ kind: "hidden" })).toEqual({ kind: "hidden" });
+  });
+  it("installs straight from the rail when an update is ready, and says so", () => {
+    expect(updateRailState({ kind: "available", version: "0.2.0-beta.4" })).toEqual({
+      kind: "shown",
+      action: "install",
+      label: "Restart to update to Thoughts 0.2.0-beta.4",
+    });
+  });
+  it("expands the sidebar while downloading so the progress is readable", () => {
+    expect(updateRailState({ kind: "downloading", version: "v", percent: 40 })).toEqual({
+      kind: "shown",
+      action: "expand",
+      label: "Downloading Thoughts v · 40%",
+    });
+    expect(updateRailState({ kind: "downloading", version: "v", percent: null })).toEqual({
+      kind: "shown",
+      action: "expand",
+      label: "Downloading Thoughts v…",
+    });
+  });
+  it("expands the sidebar on error so the message and Retry are visible", () => {
+    expect(updateRailState({ kind: "error", version: "v", message: "boom" })).toEqual({
+      kind: "shown",
+      action: "expand",
+      label: "Update failed: boom",
     });
   });
 });
