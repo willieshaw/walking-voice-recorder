@@ -13,7 +13,7 @@ import { CombineModal } from "./shell/CombineModal";
 import { SettingsPage } from "./shell/SettingsPage";
 import { KeysModal } from "./shell/KeysModal";
 import { OnboardingPanel } from "./shell/OnboardingPanel";
-import { UpdateStrip } from "./shell/UpdateStrip";
+import { UpdateRailButton, UpdateStrip } from "./shell/UpdateStrip";
 import { importArchive } from "./lib/importArchive";
 import { isCombined, resolveCombined, type Combined } from "@core/combine";
 
@@ -75,6 +75,7 @@ import { hasKeys } from "./lib/keys";
 import {
   checkForUpdate,
   installUpdate,
+  updateRailState,
   updateStripState,
   type AvailableUpdate,
   type StripPhase,
@@ -959,6 +960,7 @@ export default function App() {
   const activeNote = note ? (combined?.note ?? note) : null;
 
   if (!booted) return null;
+  const updateStrip = updateStripState(update, updatePhase);
   return (
     <div className={`app${sideCollapsed ? " app-side-collapsed" : ""}`}>
       {sideCollapsed ? (
@@ -991,6 +993,12 @@ export default function App() {
               <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
             </svg>
           </button>
+          <UpdateRailButton
+            state={updateRailState(updateStrip)}
+            tone={updateStrip.kind}
+            onInstall={() => void handleInstallUpdate()}
+            onExpand={toggleSidebar}
+          />
           <button
             className="rail-btn rail-btn-bottom"
             title="Settings"
@@ -1278,6 +1286,11 @@ export default function App() {
             )}
           </>
         )}
+        <UpdateStrip
+          state={updateStrip}
+          onInstall={() => void handleInstallUpdate()}
+          onDismiss={() => setUpdatePhase({ phase: "dismissed" })}
+        />
         <button className="account-row" onClick={() => setView("settings")}>
           <span className="account-avatar">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -1339,13 +1352,6 @@ export default function App() {
               summaries={filterFolder ? live.filter((s) => s.folder === filterFolder) : live}
               title={filterFolder ?? "All notes"}
               onOpen={openMemo}
-              strip={
-                <UpdateStrip
-                  state={updateStripState(update, updatePhase)}
-                  onInstall={() => void handleInstallUpdate()}
-                  onDismiss={() => setUpdatePhase({ phase: "dismissed" })}
-                />
-              }
             />
           )
         ) : (

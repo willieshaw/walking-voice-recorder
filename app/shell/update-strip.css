@@ -1,32 +1,53 @@
-/* Same family as the export banner the web app had: a quiet blue strip above the feed. */
+/* The update prompt: a quiet blue card pinned to the bottom of the sidebar, just above the
+ * Settings row. It takes over the row's `margin-top: auto` so the pair stays together. */
 .update-strip {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  flex-wrap: wrap;
-  margin-bottom: 22px;
-  padding: 10px 14px;
+  margin: auto 0 8px;
+  padding: 9px 9px 10px 10px;
   background: rgba(37, 99, 235, 0.06);
   border: 1px solid rgba(37, 99, 235, 0.18);
   border-radius: 10px;
   font-size: 12.5px;
+  line-height: 1.35;
   color: var(--text-2);
 }
-.update-strip > span:first-child {
-  flex: 1;
-  min-width: 200px;
+.update-strip + .account-row {
+  margin-top: 0;
 }
-.update-strip .ghost-btn {
-  background: var(--surface);
+.update-strip-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.update-strip-icon {
+  flex: none;
+  display: flex;
+  margin-top: 1px;
+  color: var(--accent);
+}
+.update-strip-error .update-strip-icon {
+  color: #b3261e;
+}
+.update-strip-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.update-strip-ver {
+  white-space: nowrap;
+}
+.update-strip .error {
+  font: inherit;
 }
 .update-strip-close {
   flex: none;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
+  margin: -2px -2px 0 0;
+  padding: 0;
   border: none;
   background: none;
   border-radius: 6px;
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1;
   color: var(--muted);
   cursor: pointer;
@@ -35,7 +56,61 @@
   color: var(--text);
   background: rgba(37, 99, 235, 0.1);
 }
+.update-strip-go {
+  display: block;
+  width: calc(100% - 23px);
+  margin: 8px 0 0 23px; /* align under the text, past the icon */
+  background: var(--surface);
+}
+.update-strip-bar {
+  height: 3px;
+  margin: 8px 0 0 23px;
+  border-radius: 2px;
+  background: rgba(37, 99, 235, 0.14);
+  overflow: hidden;
+}
+.update-strip-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
 
-.update-strip .error {
-  font: inherit;
+/* Collapsed rail: one icon above Settings, likewise taking over the bottom pin. */
+.rail-update {
+  position: relative;
+  margin-top: auto;
+  color: var(--accent);
+}
+.rail-update:hover {
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--accent);
+}
+.rail-update + .rail-btn-bottom {
+  margin-top: 0;
+}
+.rail-update-dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--sidebar);
+}
+.rail-update-downloading .rail-update-dot {
+  animation: rail-update-pulse 1.2s ease-in-out infinite;
+}
+.rail-update-error,
+.rail-update-error:hover {
+  color: #b3261e;
+}
+.rail-update-error .rail-update-dot {
+  background: #b3261e;
+}
+@keyframes rail-update-pulse {
+  50% {
+    opacity: 0.3;
+  }
 }

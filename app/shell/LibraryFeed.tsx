@@ -1,6 +1,5 @@
 // The library home: every note as a rich feed row (date, serif title, snippet, a small
 // decorative waveform, duration). Clicking a row opens the memo view.
-import type { ReactNode } from "react";
 import type { NoteSummary } from "../lib/notesDb";
 import { formatTime } from "../components/AudioPlayer";
 import "./library-feed.css";
@@ -41,17 +40,13 @@ export function LibraryFeed({
   summaries,
   title = "All notes",
   onOpen,
-  strip,
 }: {
   summaries: NoteSummary[];
   title?: string;
   onOpen: (id: string) => void;
-  /** Optional notice rendered above the heading, inside the reading column. */
-  strip?: ReactNode;
 }) {
   return (
     <div className="lf-page">
-      {strip}
       <div className="lf-head">
         <h1 className="lf-title">{title}</h1>
         <span className="lf-count">
